@@ -10,7 +10,8 @@
     $ . ./arkos/bin/activate
     ...
     (arkos)$ pip install -r requirements.txt
-    ...```
+    ...
+    ```
 
 2. Run the server:
 
