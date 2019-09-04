@@ -1,0 +1,2604 @@
+------- FILE prom.asm LEVEL 1 PASS 1
+      1  0000					      processor	6502
+      2  0000 ????
+      3  0000 ????						;; ------------------------------------------------------------------
+      4  0000 ????
+      5 U0000 ????				      seg.u	data
+      6 U0080					      org	$80
+      7 U0080
+      8 U0080				   puts_ptr
+      9 U0080		       00 00		      ds	2
+     10 U0082
+     11 U0082				   debug_ptr
+     12 U0082		       00 00		      ds	2
+     13 U0084
+     14 U0084				   memcmp_a_ptr
+     15 U0084		       00 00		      ds	2
+     16 U0086
+     17 U0086				   memcmp_b_ptr
+     18 U0086		       00 00		      ds	2
+     19 U0088
+     20 U0088				   memcmp_length
+     21 U0088		       00 00		      ds	2
+     22 U008a
+     23 U008a				   hexdump_ptr
+     24 U008a		       00 00		      ds	2
+     25 U008c
+     26 U008c				   disk_address
+     27 U008c		       00 00		      ds	2
+     28 U008e
+     29 U008e				   scanf_word_ptr
+     30 U008e		       00 00		      ds	2
+     31 U0090
+     32 U0090				   scanf_word_result
+     33 U0090		       00 00		      ds	2
+     34 U0092
+     35 U0092				   scanf_byte_ptr
+     36 U0092		       00 00		      ds	2
+     37 U0094
+     38 U0094				   scanf_byte_result
+     39 U0094		       00		      ds	1
+     40 U0095
+     41 U0095							;; ------------------------------------------------------------------
+     42 U0095
+     43 U0000 ????				      seg.u	hidata
+     44 U0100					      org	$100
+     45 U0100
+     46 U0100				   disk_sector_data
+     47 U0100		       00 00 00 00*	      ds	$40
+     48 U0140
+     49 U0140							;; ------------------------------------------------------------------
+     50 U0140
+     51  0000 ????				      seg	cdata
+     52  4000					      org	$4000
+     53  4000
+     54  4000		       00 0a	   CR	      equ	$0a, $0d
+     55  4000
+     56  4000				   hexdigits
+     57  4000		       30 31 32 33*	      .byte.b	"0123456789abcdef"
+     58  4010
+     59  4010				   trace_disk_read_sector
+     60  4010		       64 69 73 6b*	      .byte.b	"disk_read_sector", $00
+     61  4021
+     62  4021							;; ------------------------------------------------------------------
+     63  4021
+     64  0000 ????				      seg	code
+     65  8000					      org	$8000
+     66  8000
+     67  8000							;; ----------------------------------------------------------
+     68  8000
+     69  8000					      mac	load_address
+     70  8000					      lda	#<[{2}]
+     71  8000					      sta	[{1}]
+     72  8000					      lda	#>[{2}]
+     73  8000					      sta	[{1}] + 1
+     74  8000					      endm
+     75  8000
+     76  8000					      mac	inc16
+     77  8000					      inc	{1}
+     78  8000					      bne	.1
+     79  8000					      inc	{1}+1
+     80  8000				   .1
+     81  8000					      endm
+     82  8000
+     83  8000					      mac	dec16
+     84  8000					      lda	{1}
+     85  8000					      cmp	#0
+     86  8000					      bne	.1
+     87  8000					      dec	{1}+1
+     88  8000				   .1
+     89  8000					      dec	{1}
+     90  8000					      endm
+     91  8000
+     92  8000
+     93  8000							;; ----------------------------------------------------------
+     94  8000
+     95  8000				   _debug     subroutine
+     96  8000		       60		      rts
+     97  8001
+     98  8001							;; ----------------------------------------------------------
+     99  8001
+    100  8001					      mac	debug_trace
+    101  8001					      load_address	debug_ptr, [{1}]
+    102  8001					      jsr	_debug
+    103  8001					      endm
+    104  8001
+    105  8001							;; ----------------------------------------------------------
+    106  8001
+    107  8001				   memcmp     subroutine
+    108  8001				   .loop
+    109  8001		       a5 88		      lda	memcmp_length
+    110  8003		       c9 00		      cmp	#0
+    111  8005		       d0 00		      bne	.1
+    112  8007		       a5 89		      lda	memcmp_length+1
+    113  8009		       c9 00		      cmp	#0
+    114  800b		       d0 00		      bne	.1
+    115  800d
+    116  800d		       a9 00		      lda	#0
+    117  800f		       60		      rts
+    118  8010				   .1
+    119  8010							;ldx #0
+    120  8010							;lda (memcmp_a_ptr,X)
+    121  8010							;jsr _putc
+    122  8010
+    123  8010							;ldx #0
+    124  8010							;lda (memcmp_b_ptr,X)
+    125  8010							;jsr _putc
+    126  8010
+    127  8010		       a2 00		      ldx	#0
+    128  8012		       a1 84		      lda	(memcmp_a_ptr,X)
+    129  8014		       c1 86		      cmp	(memcmp_b_ptr,X)
+    130  8016		       f0 86		      beq	.2
+    131  8018
+    132  8018		       a9 01		      lda	#1
+    133  801a		       60		      rts
+    134  801b
+    135  801b				   .2
+      0  801b					      inc16	memcmp_a_ptr
+      1  801b		       e6 84		      inc	memcmp_a_ptr
+      2  801d		       d0 84		      bne	.1
+      3  801f		       e6 85		      inc	memcmp_a_ptr+1
+      4  8021				   .1
+      0  8021					      inc16	memcmp_b_ptr
+      1  8021		       e6 86		      inc	memcmp_b_ptr
+      2  8023		       d0 86		      bne	.1
+      3  8025		       e6 87		      inc	memcmp_b_ptr+1
+      4  8027				   .1
+      0  8027					      dec16	memcmp_length
+      1  8027		       a5 88		      lda	memcmp_length
+      2  8029		       c9 00		      cmp	#0
+      3  802b		       d0 00		      bne	.1
+      4  802d		       c6 89		      dec	memcmp_length+1
+      5  802f				   .1
+      6  802f		       c6 88		      dec	memcmp_length
+    139  8031		       4c 01 80 	      jmp	.loop
+    140  8034
+    141  8034							;; ==========================================================
+    142  8034
+    143  8034		       f2 00	   DISK_STATUS_REGISTER equ	$F200
+    144  8034		       f2 01	   DISK_COMMAND_REGISTER equ	$F201
+    145  8034		       f2 10	   DISK_ADDRESS_LOW_REGISTER equ	$F210
+    146  8034		       f2 11	   DISK_ADDRESS_HIGH_REGISTER equ	$F211
+    147  8034		       f2 20	   DISK_BUFFER_LOW_REGISTER equ	$F220
+    148  8034		       f2 21	   DISK_BUFFER_HIGH_REGISTER equ	$F221
+    149  8034
+    150  8034							;; ----------------------------------------------------------
+    151  8034
+    152  8034				   disk_read_sector subroutine
+      0  8034					      debug_trace	trace_disk_read_sector
+      0  8034					      load_address	debug_ptr, [trace_disk_read_sector]
+      1  8034		       a9 10		      lda	#<[[trace_disk_read_sector]]
+      2  8036		       85 82		      sta	[debug_ptr]
+      3  8038		       a9 40		      lda	#>[[trace_disk_read_sector]]
+      4  803a		       85 83		      sta	[debug_ptr] + 1
+      2  803c		       20 00 80 	      jsr	_debug
+    154  803f
+    155  803f		       a5 8c		      lda	disk_address
+    156  8041		       8d 10 f2 	      sta	DISK_ADDRESS_LOW_REGISTER
+    157  8044		       a5 8d		      lda	disk_address + 1
+    158  8046		       8d 11 f2 	      sta	DISK_ADDRESS_HIGH_REGISTER
+    159  8049
+    160  8049		       a9 00		      lda	#<disk_sector_data
+    161  804b		       8d 20 f2 	      sta	DISK_BUFFER_LOW_REGISTER
+    162  804e		       a9 01		      lda	#>disk_sector_data
+    163  8050		       8d 21 f2 	      sta	DISK_BUFFER_HIGH_REGISTER
+    164  8053
+    165  8053		       a9 81		      lda	#$81
+    166  8055		       8d 01 f2 	      sta	DISK_COMMAND_REGISTER
+    167  8058		       60		      rts
+    168  8059
+    169  8059							;; ----------------------------------------------------------
+    170  8059
+    171 U0095					      seg.u	data
+    172 U0095
+    173 U0095				   disk_scan_prefix
+    174 U0095		       00 00		      ds	2
+    175 U0097
+    176 U0097				   disk_scan_prefix_length
+    177 U0097		       00 00		      ds	2
+    178 U0099
+    179 U0099				   disk_scan_index
+    180 U0099		       00		      ds	1
+    181 U009a
+    182  8059					      seg	code
+    183  8059
+    184  8059				   disk_scan_for_path
+    185  8059					      subroutine
+    186  8059
+    187  8059		       a9 00		      lda	#00
+    188  805b		       85 99		      sta	disk_scan_index
+    189  805d
+    190  805d				   .loop
+    191  805d		       a5 99		      lda	disk_scan_index
+    192  805f		       85 8c		      sta	disk_address
+    193  8061		       a9 00		      lda	#0
+    194  8063		       85 8d		      sta	disk_address+1
+    195  8065		       20 34 80 	      jsr	disk_read_sector
+    196  8068
+    197  8068							;load_address hexdump_ptr, disk_sector_data
+    198  8068							;jsr print_hexline
+    199  8068
+    200  8068		       a5 95		      lda	disk_scan_prefix
+    201  806a		       85 84		      sta	memcmp_a_ptr
+    202  806c		       a5 96		      lda	disk_scan_prefix+1
+    203  806e		       85 85		      sta	memcmp_a_ptr+1
+      0  8070					      load_address	memcmp_b_ptr, disk_sector_data
+      1  8070		       a9 00		      lda	#<[disk_sector_data]
+      2  8072		       85 86		      sta	[memcmp_b_ptr]
+      3  8074		       a9 01		      lda	#>[disk_sector_data]
+      4  8076		       85 87		      sta	[memcmp_b_ptr] + 1
+    205  8078		       a5 97		      lda	disk_scan_prefix_length
+    206  807a		       85 88		      sta	memcmp_length
+    207  807c		       a5 98		      lda	disk_scan_prefix_length+1
+    208  807e		       85 89		      sta	memcmp_length+1
+    209  8080
+    210  8080							;load_address hexdump_ptr, disk_sector_data
+    211  8080							;jsr print_hexline
+    212  8080
+    213  8080		       20 01 80 	      jsr	memcmp
+    214  8083		       c9 00		      cmp	#0
+    215  8085		       f0 00		      beq	.found
+    216  8087
+    217  8087		       e6 99		      inc	disk_scan_index
+    218  8089		       a5 99		      lda	disk_scan_index
+    219  808b		       c9 40		      cmp	#$40
+    220  808d		       d0 ce		      bne	.loop
+    221  808f
+    222  808f		       a9 01		      lda	#1
+    223  8091		       60		      rts
+    224  8092
+    225  8092				   .found
+    226  8092		       a9 00		      lda	#0
+    227  8094		       60		      rts
+    228  8095
+    229  8095
+    230  8095							;; ==========================================================
+    231  8095
+    232  8095		       f0 00	   CONSOLE_IN equ	$F000
+    233  8095		       f0 01	   CONSOLE_OUT equ	$F001
+    234  8095
+    235  8095							;; ----------------------------------------------------------
+    236  8095
+    237  8095				   _getc      subroutine
+    238  8095		       ad 00 f0 	      lda	CONSOLE_IN
+    239  8098		       60		      rts
+    240  8099
+    241  8099							;; ----------------------------------------------------------
+    242  8099
+    243  8099				   _putc      subroutine
+    244  8099		       8d 01 f0 	      sta	CONSOLE_OUT
+    245  809c		       60		      rts
+    246  809d
+    247  809d							;; ----------------------------------------------------------
+    248  809d
+    249  809d				   _puts      subroutine
+    250  809d				   .loop
+    251  809d		       a2 00		      ldx	#$00
+    252  809f		       a1 80		      lda	(puts_ptr,X)
+    253  80a1		       8d 01 f0 	      sta	CONSOLE_OUT
+    254  80a4		       c9 00		      cmp	#0
+    255  80a6		       f0 00		      beq	.done
+    256  80a8
+      0  80a8					      inc16	puts_ptr
+      1  80a8		       e6 80		      inc	puts_ptr
+      2  80aa		       d0 80		      bne	.1
+      3  80ac		       e6 81		      inc	puts_ptr+1
+      4  80ae				   .1
+    258  80ae		       4c 9d 80 	      jmp	.loop
+    259  80b1
+    260  80b1				   .done
+    261  80b1		       60		      rts
+    262  80b2
+    263  80b2							;; ----------------------------------------------------------
+    264  80b2
+    265  80b2					      mac	puts
+    266  80b2					      load_address	puts_ptr, [{1}]
+    267  80b2					      jsr	_puts
+    268  80b2					      endm
+    269  80b2
+    270  80b2							;; ----------------------------------------------------------
+    271  80b2
+    272  80b2				   convert_nibble
+    273  80b2					      subroutine
+    274  80b2		       c9 30		      cmp	#'0
+    275  80b4		       30 30		      bmi	.invalid
+    276  80b6		       c9 40		      cmp	#$40
+    277  80b8		       30 40		      bmi	.digit
+    278  80ba
+    279  80ba		       c9 41		      cmp	#'A
+    280  80bc		       30 41		      bmi	.invalid
+    281  80be		       c9 47		      cmp	#'G
+    282  80c0		       30 47		      bmi	.alpha
+    283  80c2
+    284  80c2		       c9 61		      cmp	#'a
+    285  80c4		       30 61		      bmi	.invalid
+    286  80c6		       c9 67		      cmp	#'g
+    287  80c8		       30 67		      bmi	.alpha
+    288  80ca
+    289  80ca				   .invalid
+    290  80ca		       a9 ff		      lda	#$ff
+    291  80cc		       60		      rts
+    292  80cd
+    293  80cd				   .alpha
+    294  80cd		       29 0f		      and	#$0f
+    295  80cf		       18		      clc
+    296  80d0		       69 09		      adc	#9
+    297  80d2		       60		      rts
+    298  80d3
+    299  80d3				   .digit
+    300  80d3		       29 0f		      and	#$0f
+    301  80d5		       60		      rts
+    302  80d6
+    303  80d6				   scanf_word
+    304  80d6					      subroutine
+    305  80d6		       a2 00		      ldx	#0
+    306  80d8		       a1 8e		      lda	(scanf_word_ptr),X
+    307  80da
+    308  80da		       20 b2 80 	      jsr	convert_nibble
+    309  80dd		       c9 ff		      cmp	#$ff
+    310  80df		       f0 ff		      beq	.invalid
+    311  80e1
+    312  80e1		       0a		      asl
+    313  80e2		       0a		      asl
+    314  80e3		       0a		      asl
+    315  80e4		       0a		      asl
+    316  80e5		       85 91		      sta	scanf_word_result+1
+    317  80e7
+    318  80e7		       a0 01		      ldy	#1
+    319  80e9		       b1 8e		      lda	(scanf_word_ptr),Y
+    320  80eb
+    321  80eb		       20 b2 80 	      jsr	convert_nibble
+    322  80ee		       c9 ff		      cmp	#$ff
+    323  80f0		       f0 ff		      beq	.invalid
+    324  80f2
+    325  80f2		       05 91		      ora	scanf_word_result+1
+    326  80f4		       85 91		      sta	scanf_word_result+1
+    327  80f6
+    328  80f6		       a0 02		      ldy	#2
+    329  80f8		       b1 8e		      lda	(scanf_word_ptr),Y
+    330  80fa
+    331  80fa		       20 b2 80 	      jsr	convert_nibble
+    332  80fd		       c9 ff		      cmp	#$ff
+    333  80ff		       f0 ff		      beq	.invalid
+    334  8101
+    335  8101		       0a		      asl
+    336  8102		       0a		      asl
+    337  8103		       0a		      asl
+    338  8104		       0a		      asl
+    339  8105		       85 90		      sta	scanf_word_result
+    340  8107
+    341  8107		       a0 03		      ldy	#3
+    342  8109		       b1 8e		      lda	(scanf_word_ptr),Y
+    343  810b
+    344  810b		       20 b2 80 	      jsr	convert_nibble
+    345  810e		       c9 ff		      cmp	#$ff
+    346  8110		       f0 ff		      beq	.invalid
+    347  8112
+    348  8112		       05 90		      ora	scanf_word_result
+    349  8114		       85 90		      sta	scanf_word_result
+    350  8116
+    351  8116		       a9 00		      lda	#0
+    352  8118		       60		      rts
+    353  8119
+    354  8119				   .invalid
+    355  8119		       a9 ff		      lda	#$ff
+    356  811b		       60		      rts
+    357  811c
+    358  811c							;; ----------------------------------------------------------
+    359  811c
+    360  811c				   scanf_byte
+    361  811c					      subroutine
+    362  811c		       a2 00		      ldx	#0
+    363  811e		       a1 92		      lda	(scanf_byte_ptr),X
+    364  8120
+    365  8120		       20 b2 80 	      jsr	convert_nibble
+    366  8123		       c9 ff		      cmp	#$ff
+    367  8125		       f0 ff		      beq	.invalid
+    368  8127
+    369  8127		       0a		      asl
+    370  8128		       0a		      asl
+    371  8129		       0a		      asl
+    372  812a		       0a		      asl
+    373  812b		       85 94		      sta	scanf_byte_result
+    374  812d
+    375  812d		       a0 01		      ldy	#1
+    376  812f		       b1 92		      lda	(scanf_byte_ptr),Y
+    377  8131
+    378  8131		       20 b2 80 	      jsr	convert_nibble
+    379  8134		       c9 ff		      cmp	#$ff
+    380  8136		       f0 ff		      beq	.invalid
+    381  8138
+    382  8138		       05 94		      ora	scanf_byte_result
+    383  813a		       85 94		      sta	scanf_byte_result
+    384  813c
+    385  813c		       a9 00		      lda	#0
+    386  813e		       60		      rts
+    387  813f
+    388  813f				   .invalid
+    389  813f		       a9 ff		      lda	#$ff
+    390  8141		       60		      rts
+    391  8142
+    392  8142							;; ----------------------------------------------------------
+    393  8142
+    394  8142				   print_hex_byte
+    395  8142					      subroutine
+    396  8142		       aa		      tax
+    397  8143
+    398  8143		       4a		      lsr
+    399  8144		       4a		      lsr
+    400  8145		       4a		      lsr
+    401  8146		       4a		      lsr
+    402  8147		       a8		      tay
+    403  8148		       b9 00 40 	      lda	hexdigits,Y
+    404  814b		       20 99 80 	      jsr	_putc
+    405  814e
+    406  814e		       8a		      txa
+    407  814f		       29 0f		      and	#$f
+    408  8151		       a8		      tay
+    409  8152		       b9 00 40 	      lda	hexdigits,Y
+    410  8155		       20 99 80 	      jsr	_putc
+    411  8158
+    412  8158		       60		      rts
+    413  8159
+    414  8159							;; ----------------------------------------------------------
+    415  8159
+    416  8159				   print_newline
+    417  8159					      subroutine
+    418  8159		       a9 0a		      lda	#$0a
+    419  815b		       20 99 80 	      jsr	_putc
+    420  815e		       a9 0d		      lda	#$0d
+    421  8160		       20 99 80 	      jsr	_putc
+    422  8163		       60		      rts
+    423  8164
+    424  8164							;; ----------------------------------------------------------
+    425  8164
+    426  8164				   print_hexline
+    427  8164					      subroutine
+    428  8164		       a0 00		      ldy	#0
+    429  8166
+    430  8166				   .loop
+    431  8166		       98		      tya
+    432  8167		       48		      pha
+    433  8168		       b1 8a		      lda	(hexdump_ptr),Y
+    434  816a		       20 42 81 	      jsr	print_hex_byte
+    435  816d		       a9 20		      lda	#$20
+    436  816f		       20 99 80 	      jsr	_putc
+    437  8172		       68		      pla
+    438  8173		       a8		      tay
+    439  8174
+    440  8174		       c8		      iny
+    441  8175		       c0 10		      cpy	#$10
+    442  8177		       d0 ed		      bne	.loop
+    443  8179
+    444  8179				   .done
+    445  8179		       20 59 81 	      jsr	print_newline
+    446  817c		       60		      rts
+    447  817d
+    448  817d							;; ==========================================================
+    449  817d
+    450  4021					      seg	cdata
+    451  4021
+    452  4021				   fw_banner
+    453  4021		       53 74 61 72*	      .byte.b	"Starting ArkOS...", 0
+    454  4033
+    455  4033				   fw_version_label
+    456  4033		       46 69 72 6d*	      .byte.b	"Firmware version: ", 0
+    457  4046
+    458  4046				   fw_version
+    459  4046		       31 2e 31 2e*	      .byte.b	"1.1.B", 0
+    460  404c
+    461  404c				   hw_version_label
+    462  404c		       48 61 72 64*	      .byte.b	"Hardware version: ", 0
+    463  405f
+    464  405f				   memory_map_label
+    465  405f		       4d 65 6d 6f*	      .byte.b	"Memory map:", CR, 0
+    466  406c
+    467  406c				   memory_map_0
+    468  406c		       20 20 24 30*	      .byte.b	"  $0000:$00FF - RAM", CR, 0
+    469  4081
+    470  4081				   memory_map_1
+    471  4081		       20 20 24 30*	      .byte.b	"  $0100:$01FF - RAM (stack)", CR, 0
+    472  409e
+    473  409e				   memory_map_2
+    474  409e		       20 20 24 30*	      .byte.b	"  $0200:$1FFF - RAM", CR, 0
+    475  40b3
+    476  40b3				   memory_map_3
+    477  40b3		       20 20 24 34*	      .byte.b	"  $4000:$EFFF - PROM", CR, 0
+    478  40c9
+    479  40c9				   memory_map_4
+    480  40c9		       20 20 24 46*	      .byte.b	"  $F000:$FF00 - MMIO", CR, 0
+    481  40df
+    482  40df				   memory_map_5
+    483  40df		       20 20 24 46*	      .byte.b	"  $FF00:$FFFF - PROM", CR, 0
+    484  40f5
+    485  40f5
+    486  817d					      seg	code
+    487  817d
+    488  817d		       f4 00	   HW_VERSION_STRING equ	$F400
+    489  817d
+    490  817d							;; ----------------------------------------------------------
+    491  817d
+    492  817d				   print_memory_map
+    493  817d					      subroutine
+      0  817d					      puts	memory_map_label
+      0  817d					      load_address	puts_ptr, [memory_map_label]
+      1  817d		       a9 5f		      lda	#<[[memory_map_label]]
+      2  817f		       85 80		      sta	[puts_ptr]
+      3  8181		       a9 40		      lda	#>[[memory_map_label]]
+      4  8183		       85 81		      sta	[puts_ptr] + 1
+      2  8185		       20 9d 80 	      jsr	_puts
+      0  8188					      puts	memory_map_0
+      0  8188					      load_address	puts_ptr, [memory_map_0]
+      1  8188		       a9 6c		      lda	#<[[memory_map_0]]
+      2  818a		       85 80		      sta	[puts_ptr]
+      3  818c		       a9 40		      lda	#>[[memory_map_0]]
+      4  818e		       85 81		      sta	[puts_ptr] + 1
+      2  8190		       20 9d 80 	      jsr	_puts
+      0  8193					      puts	memory_map_1
+      0  8193					      load_address	puts_ptr, [memory_map_1]
+      1  8193		       a9 81		      lda	#<[[memory_map_1]]
+      2  8195		       85 80		      sta	[puts_ptr]
+      3  8197		       a9 40		      lda	#>[[memory_map_1]]
+      4  8199		       85 81		      sta	[puts_ptr] + 1
+      2  819b		       20 9d 80 	      jsr	_puts
+      0  819e					      puts	memory_map_2
+      0  819e					      load_address	puts_ptr, [memory_map_2]
+      1  819e		       a9 9e		      lda	#<[[memory_map_2]]
+      2  81a0		       85 80		      sta	[puts_ptr]
+      3  81a2		       a9 40		      lda	#>[[memory_map_2]]
+      4  81a4		       85 81		      sta	[puts_ptr] + 1
+      2  81a6		       20 9d 80 	      jsr	_puts
+      0  81a9					      puts	memory_map_3
+      0  81a9					      load_address	puts_ptr, [memory_map_3]
+      1  81a9		       a9 b3		      lda	#<[[memory_map_3]]
+      2  81ab		       85 80		      sta	[puts_ptr]
+      3  81ad		       a9 40		      lda	#>[[memory_map_3]]
+      4  81af		       85 81		      sta	[puts_ptr] + 1
+      2  81b1		       20 9d 80 	      jsr	_puts
+      0  81b4					      puts	memory_map_4
+      0  81b4					      load_address	puts_ptr, [memory_map_4]
+      1  81b4		       a9 c9		      lda	#<[[memory_map_4]]
+      2  81b6		       85 80		      sta	[puts_ptr]
+      3  81b8		       a9 40		      lda	#>[[memory_map_4]]
+      4  81ba		       85 81		      sta	[puts_ptr] + 1
+      2  81bc		       20 9d 80 	      jsr	_puts
+      0  81bf					      puts	memory_map_5
+      0  81bf					      load_address	puts_ptr, [memory_map_5]
+      1  81bf		       a9 df		      lda	#<[[memory_map_5]]
+      2  81c1		       85 80		      sta	[puts_ptr]
+      3  81c3		       a9 40		      lda	#>[[memory_map_5]]
+      4  81c5		       85 81		      sta	[puts_ptr] + 1
+      2  81c7		       20 9d 80 	      jsr	_puts
+    501  81ca		       60		      rts
+    502  81cb
+    503  81cb							;; ----------------------------------------------------------
+    504  81cb
+    505  81cb				   init       subroutine
+      0  81cb					      puts	fw_banner
+      0  81cb					      load_address	puts_ptr, [fw_banner]
+      1  81cb		       a9 21		      lda	#<[[fw_banner]]
+      2  81cd		       85 80		      sta	[puts_ptr]
+      3  81cf		       a9 40		      lda	#>[[fw_banner]]
+      4  81d1		       85 81		      sta	[puts_ptr] + 1
+      2  81d3		       20 9d 80 	      jsr	_puts
+    507  81d6		       20 59 81 	      jsr	print_newline
+      0  81d9					      puts	hw_version_label
+      0  81d9					      load_address	puts_ptr, [hw_version_label]
+      1  81d9		       a9 4c		      lda	#<[[hw_version_label]]
+      2  81db		       85 80		      sta	[puts_ptr]
+      3  81dd		       a9 40		      lda	#>[[hw_version_label]]
+      4  81df		       85 81		      sta	[puts_ptr] + 1
+      2  81e1		       20 9d 80 	      jsr	_puts
+    509  81e4		       a9 00		      lda	#$00
+    510  81e6		       85 80		      sta	puts_ptr
+    511  81e8		       a9 f4		      lda	#$F4
+    512  81ea		       85 81		      sta	puts_ptr + 1
+    513  81ec		       20 9d 80 	      jsr	_puts
+    514  81ef		       20 59 81 	      jsr	print_newline
+      0  81f2					      puts	fw_version_label
+      0  81f2					      load_address	puts_ptr, [fw_version_label]
+      1  81f2		       a9 33		      lda	#<[[fw_version_label]]
+      2  81f4		       85 80		      sta	[puts_ptr]
+      3  81f6		       a9 40		      lda	#>[[fw_version_label]]
+      4  81f8		       85 81		      sta	[puts_ptr] + 1
+      2  81fa		       20 9d 80 	      jsr	_puts
+      0  81fd					      puts	fw_version
+      0  81fd					      load_address	puts_ptr, [fw_version]
+      1  81fd		       a9 46		      lda	#<[[fw_version]]
+      2  81ff		       85 80		      sta	[puts_ptr]
+      3  8201		       a9 40		      lda	#>[[fw_version]]
+      4  8203		       85 81		      sta	[puts_ptr] + 1
+      2  8205		       20 9d 80 	      jsr	_puts
+    517  8208		       20 59 81 	      jsr	print_newline
+    518  820b		       20 7d 81 	      jsr	print_memory_map
+    519  820e		       60		      rts
+    520  820f
+    521  820f							;; ----------------------------------------------------------
+    522  820f
+    523 U009a					      seg.u	data
+    524 U009a
+    525 U009a				   print_sector_sector
+    526 U009a		       00 00		      ds	2
+    527 U009c
+    528  820f					      seg	code
+    529  820f
+    530  820f				   print_sector_string
+    531  820f					      subroutine
+    532  820f
+    533  820f		       a5 9a		      lda	print_sector_sector
+    534  8211		       85 8c		      sta	disk_address
+    535  8213		       a5 9b		      lda	print_sector_sector + 1
+    536  8215		       85 8d		      sta	disk_address + 1
+    537  8217		       20 34 80 	      jsr	disk_read_sector
+    538  821a
+    539  821a		       a2 00		      ldx	#0
+    540  821c				   .loop
+    541  821c		       bd 00 01 	      lda	disk_sector_data,X
+    542  821f		       c9 00		      cmp	#0
+    543  8221		       f0 00		      beq	.done
+    544  8223		       20 99 80 	      jsr	_putc
+    545  8226		       e8		      inx
+    546  8227		       e0 40		      cpx	#$40
+    547  8229		       d0 f1		      bne	.loop
+    548  822b
+    549  822b				   .done
+    550  822b		       60		      rts
+    551  822c
+    552  822c							;; ----------------------------------------------------------
+    553  822c
+    554 U009c					      seg.u	data
+    555 U009c
+    556 U009c				   print_file_count
+    557 U009c		       00 00		      ds	2
+    558 U009e
+    559 U009e				   print_file_sector
+    560 U009e		       00 00		      ds	2
+    561 U00a0
+    562  822c					      seg	code
+    563  822c
+    564  822c				   print_file_string
+    565  822c					      subroutine
+    566  822c		       a2 30		      ldx	#$30
+    567  822e		       bd 00 01 	      lda	disk_sector_data,X
+    568  8231		       85 9e		      sta	print_file_sector
+    569  8233		       e8		      inx
+    570  8234		       bd 00 01 	      lda	disk_sector_data,X
+    571  8237		       85 9f		      sta	print_file_sector+1
+    572  8239		       e8		      inx
+    573  823a		       bd 00 01 	      lda	disk_sector_data,X
+    574  823d		       85 9c		      sta	print_file_count
+    575  823f		       e8		      inx
+    576  8240		       bd 00 01 	      lda	disk_sector_data,X
+    577  8243		       85 9d		      sta	print_file_count+1
+    578  8245
+    579  8245				   .loop
+    580  8245		       a5 9c		      lda	print_file_count
+    581  8247		       c9 00		      cmp	#0
+    582  8249		       d0 00		      bne	.1
+    583  824b		       a5 9d		      lda	print_file_count + 1
+    584  824d		       c9 00		      cmp	#0
+    585  824f		       f0 00		      beq	.done
+    586  8251				   .1
+    587  8251		       a5 9e		      lda	print_file_sector
+    588  8253		       85 9a		      sta	print_sector_sector
+    589  8255		       a5 9f		      lda	print_file_sector + 1
+    590  8257		       85 9b		      sta	print_sector_sector + 1
+    591  8259		       20 0f 82 	      jsr	print_sector_string
+    592  825c
+      0  825c					      dec16	print_file_count
+      1  825c		       a5 9c		      lda	print_file_count
+      2  825e		       c9 00		      cmp	#0
+      3  8260		       d0 00		      bne	.1
+      4  8262		       c6 9d		      dec	print_file_count+1
+      5  8264				   .1
+      6  8264		       c6 9c		      dec	print_file_count
+      0  8266					      inc16	print_file_sector
+      1  8266		       e6 9e		      inc	print_file_sector
+      2  8268		       d0 9e		      bne	.1
+      3  826a		       e6 9f		      inc	print_file_sector+1
+      4  826c				   .1
+    595  826c		       4c 45 82 	      jmp	.loop
+    596  826f
+    597  826f				   .done
+    598  826f		       60		      rts
+    599  8270
+    600  8270							;; ----------------------------------------------------------
+    601  8270
+    602  40f5					      seg	cdata
+    603  40f5
+    604  40f5				   motd_file_path
+    605  40f5		       2f 65 74 63*	      .byte.b	"/etc/motd", 0
+    606  40ff
+    607  40ff		       00 07	   motd_file_path_length equ	$07
+    608  40ff
+    609  40ff				   motd_lookup_failed
+    610  40ff		       45 52 52 4f*	      .byte.b	"ERROR: failed to find /etc/motd", CR, 0
+    611  4120
+    612  4120				   motd_lookup_succeeded
+    613  4120		       46 6f 75 6e*	      .byte.b	"Found /etc/motd!", CR, 0
+    614  4132
+    615  4132				   mail_file_path
+    616  4132		       2f 76 61 72*	      .byte.b	"/var/mail/spool/atredis", 0
+    617  414a
+    618  414a		       00 17	   mail_file_path_length equ	$17
+    619  414a
+    620  414a				   mail_lookup_begin
+    621  414a		       43 68 65 63*	      .byte.b	"Checking mail for user atredis...", CR, 0
+    622  416d
+    623  416d				   mail_lookup_succeeded
+    624  416d		       46 6f 75 6e*	      .byte.b	"Found mail!", CR, CR, 0
+    625  417b
+    626  417b				   mail_lookup_failed
+    627  417b		       4e 6f 20 6d*	      .byte.b	"No mail.", CR, 0
+    628  4185
+    629  8270					      seg	code
+    630  8270
+    631  8270				   print_motd
+    632  8270					      subroutine
+      0  8270					      load_address	disk_scan_prefix, motd_file_path
+      1  8270		       a9 f5		      lda	#<[motd_file_path]
+      2  8272		       85 95		      sta	[disk_scan_prefix]
+      3  8274		       a9 40		      lda	#>[motd_file_path]
+      4  8276		       85 96		      sta	[disk_scan_prefix] + 1
+    634  8278		       a9 07		      lda	#motd_file_path_length
+    635  827a		       85 97		      sta	disk_scan_prefix_length
+    636  827c		       a9 00		      lda	#0
+    637  827e		       85 98		      sta	disk_scan_prefix_length + 1
+    638  8280		       20 59 80 	      jsr	disk_scan_for_path
+    639  8283
+    640  8283		       c9 00		      cmp	#0
+    641  8285		       d0 00		      bne	.failed
+    642  8287
+      0  8287					      puts	motd_lookup_succeeded
+      0  8287					      load_address	puts_ptr, [motd_lookup_succeeded]
+      1  8287		       a9 20		      lda	#<[[motd_lookup_succeeded]]
+      2  8289		       85 80		      sta	[puts_ptr]
+      3  828b		       a9 41		      lda	#>[[motd_lookup_succeeded]]
+      4  828d		       85 81		      sta	[puts_ptr] + 1
+      2  828f		       20 9d 80 	      jsr	_puts
+    644  8292		       20 2c 82 	      jsr	print_file_string
+    645  8295		       60		      rts
+    646  8296
+    647  8296				   .failed
+      0  8296					      puts	motd_lookup_failed
+      0  8296					      load_address	puts_ptr, [motd_lookup_failed]
+      1  8296		       a9 ff		      lda	#<[[motd_lookup_failed]]
+      2  8298		       85 80		      sta	[puts_ptr]
+      3  829a		       a9 40		      lda	#>[[motd_lookup_failed]]
+      4  829c		       85 81		      sta	[puts_ptr] + 1
+      2  829e		       20 9d 80 	      jsr	_puts
+    649  82a1		       60		      rts
+    650  82a2
+    651  82a2							;; ----------------------------------------------------------
+    652  82a2
+    653  82a2				   print_mail
+    654  82a2					      subroutine
+    655  82a2
+      0  82a2					      puts	mail_lookup_begin
+      0  82a2					      load_address	puts_ptr, [mail_lookup_begin]
+      1  82a2		       a9 4a		      lda	#<[[mail_lookup_begin]]
+      2  82a4		       85 80		      sta	[puts_ptr]
+      3  82a6		       a9 41		      lda	#>[[mail_lookup_begin]]
+      4  82a8		       85 81		      sta	[puts_ptr] + 1
+      2  82aa		       20 9d 80 	      jsr	_puts
+    657  82ad
+      0  82ad					      load_address	disk_scan_prefix, mail_file_path
+      1  82ad		       a9 32		      lda	#<[mail_file_path]
+      2  82af		       85 95		      sta	[disk_scan_prefix]
+      3  82b1		       a9 41		      lda	#>[mail_file_path]
+      4  82b3		       85 96		      sta	[disk_scan_prefix] + 1
+    659  82b5		       a9 17		      lda	#mail_file_path_length
+    660  82b7		       85 97		      sta	disk_scan_prefix_length
+    661  82b9		       a9 00		      lda	#0
+    662  82bb		       85 98		      sta	disk_scan_prefix_length + 1
+    663  82bd		       20 59 80 	      jsr	disk_scan_for_path
+    664  82c0
+    665  82c0		       c9 00		      cmp	#0
+    666  82c2		       d0 00		      bne	.failed
+    667  82c4
+      0  82c4					      puts	mail_lookup_succeeded
+      0  82c4					      load_address	puts_ptr, [mail_lookup_succeeded]
+      1  82c4		       a9 6d		      lda	#<[[mail_lookup_succeeded]]
+      2  82c6		       85 80		      sta	[puts_ptr]
+      3  82c8		       a9 41		      lda	#>[[mail_lookup_succeeded]]
+      4  82ca		       85 81		      sta	[puts_ptr] + 1
+      2  82cc		       20 9d 80 	      jsr	_puts
+    669  82cf		       20 2c 82 	      jsr	print_file_string
+    670  82d2		       60		      rts
+    671  82d3
+    672  82d3				   .failed
+      0  82d3					      puts	mail_lookup_failed
+      0  82d3					      load_address	puts_ptr, [mail_lookup_failed]
+      1  82d3		       a9 7b		      lda	#<[[mail_lookup_failed]]
+      2  82d5		       85 80		      sta	[puts_ptr]
+      3  82d7		       a9 41		      lda	#>[[mail_lookup_failed]]
+      4  82d9		       85 81		      sta	[puts_ptr] + 1
+      2  82db		       20 9d 80 	      jsr	_puts
+    674  82de		       60		      rts
+    675  82df
+    676  82df							;; ----------------------------------------------------------
+    677  82df
+    678  4185					      seg	cdata
+    679  4185
+    680  4185				   cli_prompt
+    681  4185		       61 72 6b 6f*	      .byte.b	"arkos> ", 0
+    682  418d
+    683  418d				   cli_invalid_command
+    684  418d		       49 6e 76 61*	      .byte.b	"Invalid command", CR, 0
+    685  419e
+    686  419e				   cli_command_help_prefix
+    687  419e		       68 65 6c 70	      .byte.b	"help"
+    688  41a2
+    689  41a2		       00 04	   cli_command_help_prefix_length equ	$04
+    690  41a2
+    691  41a2				   cli_command_read_prefix
+    692  41a2		       72 65 61 64*	      .byte.b	"read "
+    693  41a7
+    694  41a7		       00 05	   cli_command_read_prefix_length equ	$05
+    695  41a7
+    696  41a7				   cli_command_write_prefix
+    697  41a7		       77 72 69 74*	      .byte.b	"write "
+    698  41ad
+    699  41ad		       00 06	   cli_command_write_prefix_length equ	$06
+    700  41ad
+    701  41ad				   cli_command_call_prefix
+    702  41ad		       63 61 6c 6c*	      .byte.b	"call "
+    703  41b2
+    704  41b2		       00 05	   cli_command_call_prefix_length equ	$05
+    705  41b2
+    706  41b2				   cli_help_0
+    707  41b2		       0a		      .byte.b	CR
+    708  41b3		       43 6f 6d 6d*	      .byte.b	"Commands:", CR
+    709  41bd		       20 20 68 65*	      .byte.b	"  help", CR
+    710  41c4		       20 20 20 20*	      .byte.b	"    This message", CR
+    711  41d5		       20 20 72 65*	      .byte.b	"  read", CR
+    712  41dc		       20 20 20 20*	      .byte.b	"    'read F400' reads the byte at $F400", CR
+    713  4204							;; .byte "  write", CR
+    714  4204							;; .byte "    'write 0004 41' writes an $41 to $0004", CR
+    715  4204		       00		      .byte.b	0
+    716  4205
+    717 U00a0					      seg.u	data
+    718 U00a0
+    719 U00a0				   cli_buffer_index
+    720 U00a0		       00		      ds	1
+    721 U00a1
+    722 U0140					      seg.u	hidata
+    723 U0140
+    724 U0140				   cli_buffer
+    725 U0140		       00 00 00 00*	      ds	$40
+    726 U0180
+    727 U0180				   cli_call_tramp
+    728 U0180		       00 00 00 00*	      ds	$10
+    729 U0190
+    730  82df					      seg	code
+    731  82df
+    732  82df				   cli_read_command
+    733  82df					      subroutine
+    734  82df		       a9 00		      lda	#0
+    735  82e1		       85 a0		      sta	cli_buffer_index
+    736  82e3
+    737  82e3				   .loop
+    738  82e3		       20 95 80 	      jsr	_getc
+    739  82e6		       c9 0a		      cmp	#$0a
+    740  82e8		       f0 0a		      beq	.done
+    741  82ea
+    742  82ea		       a6 a0		      ldx	cli_buffer_index
+    743  82ec		       9d 40 01 	      sta	cli_buffer,X
+    744  82ef		       e8		      inx
+    745  82f0		       86 a0		      stx	cli_buffer_index
+    746  82f2		       e0 3f		      cpx	#$3f
+    747  82f4		       d0 ed		      bne	.loop
+    748  82f6
+    749  82f6				   .done
+    750  82f6		       a6 a0		      ldx	cli_buffer_index
+    751  82f8		       a9 00		      lda	#0
+    752  82fa		       9d 40 01 	      sta	cli_buffer,X
+    753  82fd		       60		      rts
+    754  82fe
+    755  82fe							;; ----------------------------------------------------------
+    756  82fe
+    757  82fe				   cli_handle_command_help
+    758  82fe					      subroutine
+      0  82fe					      load_address	memcmp_a_ptr, cli_command_help_prefix
+      1  82fe		       a9 9e		      lda	#<[cli_command_help_prefix]
+      2  8300		       85 84		      sta	[memcmp_a_ptr]
+      3  8302		       a9 41		      lda	#>[cli_command_help_prefix]
+      4  8304		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8306					      load_address	memcmp_b_ptr, cli_buffer
+      1  8306		       a9 40		      lda	#<[cli_buffer]
+      2  8308		       85 86		      sta	[memcmp_b_ptr]
+      3  830a		       a9 01		      lda	#>[cli_buffer]
+      4  830c		       85 87		      sta	[memcmp_b_ptr] + 1
+    761  830e		       a9 04		      lda	#cli_command_help_prefix_length
+    762  8310		       85 88		      sta	memcmp_length
+    763  8312		       a9 00		      lda	#0
+    764  8314		       85 89		      sta	memcmp_length+1
+    765  8316		       20 01 80 	      jsr	memcmp
+    766  8319
+    767  8319		       c9 00		      cmp	#0
+    768  831b		       f0 00		      beq	.found
+    769  831d
+    770  831d		       a9 00		      lda	#0
+    771  831f		       60		      rts
+    772  8320
+    773  8320				   .found
+      0  8320					      puts	cli_help_0
+      0  8320					      load_address	puts_ptr, [cli_help_0]
+      1  8320		       a9 b2		      lda	#<[[cli_help_0]]
+      2  8322		       85 80		      sta	[puts_ptr]
+      3  8324		       a9 41		      lda	#>[[cli_help_0]]
+      4  8326		       85 81		      sta	[puts_ptr] + 1
+      2  8328		       20 9d 80 	      jsr	_puts
+    775  832b		       a9 01		      lda	#1
+    776  832d		       60		      rts
+    777  832e
+    778  832e				   cli_handle_command_read
+    779  832e					      subroutine
+      0  832e					      load_address	memcmp_a_ptr, cli_command_read_prefix
+      1  832e		       a9 a2		      lda	#<[cli_command_read_prefix]
+      2  8330		       85 84		      sta	[memcmp_a_ptr]
+      3  8332		       a9 41		      lda	#>[cli_command_read_prefix]
+      4  8334		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8336					      load_address	memcmp_b_ptr, cli_buffer
+      1  8336		       a9 40		      lda	#<[cli_buffer]
+      2  8338		       85 86		      sta	[memcmp_b_ptr]
+      3  833a		       a9 01		      lda	#>[cli_buffer]
+      4  833c		       85 87		      sta	[memcmp_b_ptr] + 1
+    782  833e		       a9 05		      lda	#cli_command_read_prefix_length
+    783  8340		       85 88		      sta	memcmp_length
+    784  8342		       a9 00		      lda	#0
+    785  8344		       85 89		      sta	memcmp_length+1
+    786  8346		       20 01 80 	      jsr	memcmp
+    787  8349
+    788  8349		       c9 00		      cmp	#0
+    789  834b		       f0 00		      beq	.found
+    790  834d
+    791  834d		       a9 00		      lda	#0
+    792  834f		       60		      rts
+    793  8350
+    794  8350				   .found
+      0  8350					      load_address	scanf_word_ptr, cli_buffer
+      1  8350		       a9 40		      lda	#<[cli_buffer]
+      2  8352		       85 8e		      sta	[scanf_word_ptr]
+      3  8354		       a9 01		      lda	#>[cli_buffer]
+      4  8356		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  8358					      inc16	scanf_word_ptr
+      1  8358		       e6 8e		      inc	scanf_word_ptr
+      2  835a		       d0 8e		      bne	.1
+      3  835c		       e6 8f		      inc	scanf_word_ptr+1
+      4  835e				   .1
+      0  835e					      inc16	scanf_word_ptr
+      1  835e		       e6 8e		      inc	scanf_word_ptr
+      2  8360		       d0 8e		      bne	.1
+      3  8362		       e6 8f		      inc	scanf_word_ptr+1
+      4  8364				   .1
+      0  8364					      inc16	scanf_word_ptr
+      1  8364		       e6 8e		      inc	scanf_word_ptr
+      2  8366		       d0 8e		      bne	.1
+      3  8368		       e6 8f		      inc	scanf_word_ptr+1
+      4  836a				   .1
+      0  836a					      inc16	scanf_word_ptr
+      1  836a		       e6 8e		      inc	scanf_word_ptr
+      2  836c		       d0 8e		      bne	.1
+      3  836e		       e6 8f		      inc	scanf_word_ptr+1
+      4  8370				   .1
+      0  8370					      inc16	scanf_word_ptr
+      1  8370		       e6 8e		      inc	scanf_word_ptr
+      2  8372		       d0 8e		      bne	.1
+      3  8374		       e6 8f		      inc	scanf_word_ptr+1
+      4  8376				   .1
+    801  8376		       20 d6 80 	      jsr	scanf_word
+    802  8379
+    803  8379		       a9 24		      lda	#'$
+    804  837b		       20 99 80 	      jsr	_putc
+    805  837e		       a5 91		      lda	scanf_word_result+1
+    806  8380		       20 42 81 	      jsr	print_hex_byte
+    807  8383		       a5 90		      lda	scanf_word_result
+    808  8385		       20 42 81 	      jsr	print_hex_byte
+    809  8388		       a9 20		      lda	#$20
+    810  838a		       20 99 80 	      jsr	_putc
+    811  838d		       a9 3d		      lda	#'=
+    812  838f		       20 99 80 	      jsr	_putc
+    813  8392		       a9 20		      lda	#$20
+    814  8394		       20 99 80 	      jsr	_putc
+    815  8397		       a9 24		      lda	#'$
+    816  8399		       20 99 80 	      jsr	_putc
+    817  839c		       a2 00		      ldx	#0
+    818  839e		       a1 90		      lda	(scanf_word_result,X)
+    819  83a0		       20 42 81 	      jsr	print_hex_byte
+    820  83a3		       20 59 81 	      jsr	print_newline
+    821  83a6
+    822  83a6		       a9 01		      lda	#1
+    823  83a8		       60		      rts
+    824  83a9
+    825  83a9				   cli_handle_command_write
+    826  83a9					      subroutine
+      0  83a9					      load_address	memcmp_a_ptr, cli_command_write_prefix
+      1  83a9		       a9 a7		      lda	#<[cli_command_write_prefix]
+      2  83ab		       85 84		      sta	[memcmp_a_ptr]
+      3  83ad		       a9 41		      lda	#>[cli_command_write_prefix]
+      4  83af		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  83b1					      load_address	memcmp_b_ptr, cli_buffer
+      1  83b1		       a9 40		      lda	#<[cli_buffer]
+      2  83b3		       85 86		      sta	[memcmp_b_ptr]
+      3  83b5		       a9 01		      lda	#>[cli_buffer]
+      4  83b7		       85 87		      sta	[memcmp_b_ptr] + 1
+    829  83b9		       a9 06		      lda	#cli_command_write_prefix_length
+    830  83bb		       85 88		      sta	memcmp_length
+    831  83bd		       a9 00		      lda	#0
+    832  83bf		       85 89		      sta	memcmp_length+1
+    833  83c1		       20 01 80 	      jsr	memcmp
+    834  83c4
+    835  83c4		       c9 00		      cmp	#0
+    836  83c6		       f0 00		      beq	.found
+    837  83c8
+    838  83c8		       a9 00		      lda	#0
+    839  83ca		       60		      rts
+    840  83cb
+    841  83cb				   .found
+      0  83cb					      load_address	scanf_word_ptr, cli_buffer
+      1  83cb		       a9 40		      lda	#<[cli_buffer]
+      2  83cd		       85 8e		      sta	[scanf_word_ptr]
+      3  83cf		       a9 01		      lda	#>[cli_buffer]
+      4  83d1		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  83d3					      inc16	scanf_word_ptr
+      1  83d3		       e6 8e		      inc	scanf_word_ptr
+      2  83d5		       d0 8e		      bne	.1
+      3  83d7		       e6 8f		      inc	scanf_word_ptr+1
+      4  83d9				   .1
+      0  83d9					      inc16	scanf_word_ptr
+      1  83d9		       e6 8e		      inc	scanf_word_ptr
+      2  83db		       d0 8e		      bne	.1
+      3  83dd		       e6 8f		      inc	scanf_word_ptr+1
+      4  83df				   .1
+      0  83df					      inc16	scanf_word_ptr
+      1  83df		       e6 8e		      inc	scanf_word_ptr
+      2  83e1		       d0 8e		      bne	.1
+      3  83e3		       e6 8f		      inc	scanf_word_ptr+1
+      4  83e5				   .1
+      0  83e5					      inc16	scanf_word_ptr
+      1  83e5		       e6 8e		      inc	scanf_word_ptr
+      2  83e7		       d0 8e		      bne	.1
+      3  83e9		       e6 8f		      inc	scanf_word_ptr+1
+      4  83eb				   .1
+      0  83eb					      inc16	scanf_word_ptr
+      1  83eb		       e6 8e		      inc	scanf_word_ptr
+      2  83ed		       d0 8e		      bne	.1
+      3  83ef		       e6 8f		      inc	scanf_word_ptr+1
+      4  83f1				   .1
+      0  83f1					      inc16	scanf_word_ptr
+      1  83f1		       e6 8e		      inc	scanf_word_ptr
+      2  83f3		       d0 8e		      bne	.1
+      3  83f5		       e6 8f		      inc	scanf_word_ptr+1
+      4  83f7				   .1
+    849  83f7		       a5 8e		      lda	scanf_word_ptr
+    850  83f9		       85 92		      sta	scanf_byte_ptr
+    851  83fb		       a5 8f		      lda	scanf_word_ptr+1
+    852  83fd		       85 93		      sta	scanf_byte_ptr+1
+      0  83ff					      inc16	scanf_byte_ptr
+      1  83ff		       e6 92		      inc	scanf_byte_ptr
+      2  8401		       d0 92		      bne	.1
+      3  8403		       e6 93		      inc	scanf_byte_ptr+1
+      4  8405				   .1
+      0  8405					      inc16	scanf_byte_ptr
+      1  8405		       e6 92		      inc	scanf_byte_ptr
+      2  8407		       d0 92		      bne	.1
+      3  8409		       e6 93		      inc	scanf_byte_ptr+1
+      4  840b				   .1
+      0  840b					      inc16	scanf_byte_ptr
+      1  840b		       e6 92		      inc	scanf_byte_ptr
+      2  840d		       d0 92		      bne	.1
+      3  840f		       e6 93		      inc	scanf_byte_ptr+1
+      4  8411				   .1
+      0  8411					      inc16	scanf_byte_ptr
+      1  8411		       e6 92		      inc	scanf_byte_ptr
+      2  8413		       d0 92		      bne	.1
+      3  8415		       e6 93		      inc	scanf_byte_ptr+1
+      4  8417				   .1
+      0  8417					      inc16	scanf_byte_ptr
+      1  8417		       e6 92		      inc	scanf_byte_ptr
+      2  8419		       d0 92		      bne	.1
+      3  841b		       e6 93		      inc	scanf_byte_ptr+1
+      4  841d				   .1
+    858  841d
+    859  841d		       20 d6 80 	      jsr	scanf_word
+    860  8420
+    861  8420		       20 1c 81 	      jsr	scanf_byte
+    862  8423
+    863  8423		       a9 24		      lda	#'$
+    864  8425		       20 99 80 	      jsr	_putc
+    865  8428		       a5 91		      lda	scanf_word_result+1
+    866  842a		       20 42 81 	      jsr	print_hex_byte
+    867  842d		       a5 90		      lda	scanf_word_result
+    868  842f		       20 42 81 	      jsr	print_hex_byte
+    869  8432		       a9 20		      lda	#$20
+    870  8434		       20 99 80 	      jsr	_putc
+    871  8437		       a9 3a		      lda	#':
+    872  8439		       20 99 80 	      jsr	_putc
+    873  843c		       a9 3d		      lda	#'=
+    874  843e		       20 99 80 	      jsr	_putc
+    875  8441		       a9 20		      lda	#$20
+    876  8443		       20 99 80 	      jsr	_putc
+    877  8446		       a9 24		      lda	#'$
+    878  8448		       20 99 80 	      jsr	_putc
+    879  844b		       a5 94		      lda	scanf_byte_result
+    880  844d		       20 42 81 	      jsr	print_hex_byte
+    881  8450		       20 59 81 	      jsr	print_newline
+    882  8453
+    883  8453		       a2 00		      ldx	#0
+    884  8455		       a5 94		      lda	scanf_byte_result
+    885  8457		       81 90		      sta	(scanf_word_result,X)
+    886  8459
+    887  8459		       a9 01		      lda	#1
+    888  845b		       60		      rts
+    889  845c
+    890  845c				   cli_handle_command_call
+    891  845c					      subroutine
+      0  845c					      load_address	memcmp_a_ptr, cli_command_call_prefix
+      1  845c		       a9 ad		      lda	#<[cli_command_call_prefix]
+      2  845e		       85 84		      sta	[memcmp_a_ptr]
+      3  8460		       a9 41		      lda	#>[cli_command_call_prefix]
+      4  8462		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8464					      load_address	memcmp_b_ptr, cli_buffer
+      1  8464		       a9 40		      lda	#<[cli_buffer]
+      2  8466		       85 86		      sta	[memcmp_b_ptr]
+      3  8468		       a9 01		      lda	#>[cli_buffer]
+      4  846a		       85 87		      sta	[memcmp_b_ptr] + 1
+    894  846c		       a9 05		      lda	#cli_command_call_prefix_length
+    895  846e		       85 88		      sta	memcmp_length
+    896  8470		       a9 00		      lda	#0
+    897  8472		       85 89		      sta	memcmp_length+1
+    898  8474		       20 01 80 	      jsr	memcmp
+    899  8477
+    900  8477		       c9 00		      cmp	#0
+    901  8479		       f0 00		      beq	.found
+    902  847b
+    903  847b		       a9 00		      lda	#0
+    904  847d		       60		      rts
+    905  847e
+    906  847e				   .found
+      0  847e					      load_address	scanf_word_ptr, cli_buffer
+      1  847e		       a9 40		      lda	#<[cli_buffer]
+      2  8480		       85 8e		      sta	[scanf_word_ptr]
+      3  8482		       a9 01		      lda	#>[cli_buffer]
+      4  8484		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  8486					      inc16	scanf_word_ptr
+      1  8486		       e6 8e		      inc	scanf_word_ptr
+      2  8488		       d0 8e		      bne	.1
+      3  848a		       e6 8f		      inc	scanf_word_ptr+1
+      4  848c				   .1
+      0  848c					      inc16	scanf_word_ptr
+      1  848c		       e6 8e		      inc	scanf_word_ptr
+      2  848e		       d0 8e		      bne	.1
+      3  8490		       e6 8f		      inc	scanf_word_ptr+1
+      4  8492				   .1
+      0  8492					      inc16	scanf_word_ptr
+      1  8492		       e6 8e		      inc	scanf_word_ptr
+      2  8494		       d0 8e		      bne	.1
+      3  8496		       e6 8f		      inc	scanf_word_ptr+1
+      4  8498				   .1
+      0  8498					      inc16	scanf_word_ptr
+      1  8498		       e6 8e		      inc	scanf_word_ptr
+      2  849a		       d0 8e		      bne	.1
+      3  849c		       e6 8f		      inc	scanf_word_ptr+1
+      4  849e				   .1
+      0  849e					      inc16	scanf_word_ptr
+      1  849e		       e6 8e		      inc	scanf_word_ptr
+      2  84a0		       d0 8e		      bne	.1
+      3  84a2		       e6 8f		      inc	scanf_word_ptr+1
+      4  84a4				   .1
+    913  84a4		       20 d6 80 	      jsr	scanf_word
+    914  84a7
+    915  84a7		       a9 6a		      lda	#'j
+    916  84a9		       20 99 80 	      jsr	_putc
+    917  84ac		       a9 73		      lda	#'s
+    918  84ae		       20 99 80 	      jsr	_putc
+    919  84b1		       a9 72		      lda	#'r
+    920  84b3		       20 99 80 	      jsr	_putc
+    921  84b6		       a9 20		      lda	#$20
+    922  84b8		       20 99 80 	      jsr	_putc
+    923  84bb		       a9 24		      lda	#'$
+    924  84bd		       20 99 80 	      jsr	_putc
+    925  84c0		       a5 91		      lda	scanf_word_result+1
+    926  84c2		       20 42 81 	      jsr	print_hex_byte
+    927  84c5		       a5 90		      lda	scanf_word_result
+    928  84c7		       20 42 81 	      jsr	print_hex_byte
+    929  84ca		       20 59 81 	      jsr	print_newline
+    930  84cd
+    931  84cd		       a2 00		      ldx	#0
+    932  84cf		       a9 20		      lda	#$20	; JSR
+    933  84d1		       9d 80 01 	      sta	cli_call_tramp,X
+    934  84d4		       e8		      inx
+    935  84d5		       a5 90		      lda	scanf_word_result
+    936  84d7		       9d 80 01 	      sta	cli_call_tramp,X
+    937  84da		       e8		      inx
+    938  84db		       a5 91		      lda	scanf_word_result+1
+    939  84dd		       9d 80 01 	      sta	cli_call_tramp,X
+    940  84e0		       e8		      inx
+    941  84e1		       a9 60		      lda	#$60	; RTS
+    942  84e3		       9d 80 01 	      sta	cli_call_tramp,X
+    943  84e6		       e8		      inx
+    944  84e7
+    945  84e7		       20 80 01 	      jsr	cli_call_tramp
+    946  84ea
+    947  84ea		       a9 01		      lda	#1
+    948  84ec		       60		      rts
+    949  84ed
+    950  84ed
+    951  84ed				   cli_handle_command
+    952  84ed					      subroutine
+    953  84ed
+    954  84ed		       20 fe 82 	      jsr	cli_handle_command_help
+    955  84f0		       c9 00		      cmp	#0
+    956  84f2		       d0 00		      bne	.done
+    957  84f4
+    958  84f4		       20 2e 83 	      jsr	cli_handle_command_read
+    959  84f7		       c9 00		      cmp	#0
+    960  84f9		       d0 00		      bne	.done
+    961  84fb
+    962  84fb		       20 a9 83 	      jsr	cli_handle_command_write
+    963  84fe		       c9 00		      cmp	#0
+    964  8500		       d0 00		      bne	.done
+    965  8502
+    966  8502		       20 5c 84 	      jsr	cli_handle_command_call
+    967  8505		       c9 00		      cmp	#0
+    968  8507		       d0 00		      bne	.done
+    969  8509
+      0  8509					      puts	cli_invalid_command
+      0  8509					      load_address	puts_ptr, [cli_invalid_command]
+      1  8509		       a9 8d		      lda	#<[[cli_invalid_command]]
+      2  850b		       85 80		      sta	[puts_ptr]
+      3  850d		       a9 41		      lda	#>[[cli_invalid_command]]
+      4  850f		       85 81		      sta	[puts_ptr] + 1
+      2  8511		       20 9d 80 	      jsr	_puts
+    971  8514		       a9 01		      lda	#1
+    972  8516				   .done
+    973  8516		       60		      rts
+    974  8517
+    975  8517							;; ----------------------------------------------------------
+    976  8517
+    977  8517				   cli	      subroutine
+    978  8517
+    979  8517				   .loop
+    980  8517		       20 59 81 	      jsr	print_newline
+      0  851a					      puts	cli_prompt
+      0  851a					      load_address	puts_ptr, [cli_prompt]
+      1  851a		       a9 85		      lda	#<[[cli_prompt]]
+      2  851c		       85 80		      sta	[puts_ptr]
+      3  851e		       a9 41		      lda	#>[[cli_prompt]]
+      4  8520		       85 81		      sta	[puts_ptr] + 1
+      2  8522		       20 9d 80 	      jsr	_puts
+    982  8525		       20 df 82 	      jsr	cli_read_command
+    983  8528							; puts cli_buffer
+    984  8528		       20 ed 84 	      jsr	cli_handle_command
+    985  852b		       c9 ff		      cmp	#$ff
+    986  852d		       d0 e8		      bne	.loop
+    987  852f
+    988  852f		       60		      rts
+    989  8530
+    990  8530							;; ==========================================================
+    991  8530
+    992  8530				   reset      subroutine
+    993  8530
+    994  8530		       20 cb 81 	      jsr	init
+    995  8533		       20 70 82 	      jsr	print_motd
+    996  8536		       20 a2 82 	      jsr	print_mail
+    997  8539		       20 17 85 	      jsr	cli
+    998  853c
+    999  853c				   .loop
+   1000  853c		       4c 3c 85 	      jmp	.loop
+   1001  853f		       60		      rts
+   1002  8540
+   1003  8540
+   1004  8540		       40	   nmi	      rti
+   1005  8541
+   1006  8541		       40	   irq	      rti
+   1007  8542
+   1008  8542							;; ------------------------------------------------------------------
+   1009  8542
+   1010  fffa					      org	$FFFA
+   1011  fffa		       30 85		      .word.w	reset
+   1012  fffc		       30 85		      .word.w	reset
+   1013  fffe		       30 85		      .word.w	reset
+------- FILE prom.asm LEVEL 1 PASS 2
+      1  fffe					      processor	6502
+      2  10000 ????
+      3  10000 ????						;; ------------------------------------------------------------------
+      4  10000 ????
+      5 U00a1 ????				      seg.u	data
+      6 U0080					      org	$80
+      7 U0080
+      8 U0080				   puts_ptr
+      9 U0080		       00 00		      ds	2
+     10 U0082
+     11 U0082				   debug_ptr
+     12 U0082		       00 00		      ds	2
+     13 U0084
+     14 U0084				   memcmp_a_ptr
+     15 U0084		       00 00		      ds	2
+     16 U0086
+     17 U0086				   memcmp_b_ptr
+     18 U0086		       00 00		      ds	2
+     19 U0088
+     20 U0088				   memcmp_length
+     21 U0088		       00 00		      ds	2
+     22 U008a
+     23 U008a				   hexdump_ptr
+     24 U008a		       00 00		      ds	2
+     25 U008c
+     26 U008c				   disk_address
+     27 U008c		       00 00		      ds	2
+     28 U008e
+     29 U008e				   scanf_word_ptr
+     30 U008e		       00 00		      ds	2
+     31 U0090
+     32 U0090				   scanf_word_result
+     33 U0090		       00 00		      ds	2
+     34 U0092
+     35 U0092				   scanf_byte_ptr
+     36 U0092		       00 00		      ds	2
+     37 U0094
+     38 U0094				   scanf_byte_result
+     39 U0094		       00		      ds	1
+     40 U0095
+     41 U0095							;; ------------------------------------------------------------------
+     42 U0095
+     43 U0190 ????				      seg.u	hidata
+     44 U0100					      org	$100
+     45 U0100
+     46 U0100				   disk_sector_data
+     47 U0100		       00 00 00 00*	      ds	$40
+     48 U0140
+     49 U0140							;; ------------------------------------------------------------------
+     50 U0140
+     51  4205 ????				      seg	cdata
+     52  4000					      org	$4000
+     53  4000
+     54  4000		       00 0a	   CR	      equ	$0a, $0d
+     55  4000
+     56  4000				   hexdigits
+     57  4000		       30 31 32 33*	      .byte.b	"0123456789abcdef"
+     58  4010
+     59  4010				   trace_disk_read_sector
+     60  4010		       64 69 73 6b*	      .byte.b	"disk_read_sector", $00
+     61  4021
+     62  4021							;; ------------------------------------------------------------------
+     63  4021
+     64  10000 ????				       seg	code
+     65  8000					      org	$8000
+     66  8000
+     67  8000							;; ----------------------------------------------------------
+     68  8000
+     69  8000					      mac	load_address
+     70  8000					      lda	#<[{2}]
+     71  8000					      sta	[{1}]
+     72  8000					      lda	#>[{2}]
+     73  8000					      sta	[{1}] + 1
+     74  8000					      endm
+     75  8000
+     76  8000					      mac	inc16
+     77  8000					      inc	{1}
+     78  8000					      bne	.1
+     79  8000					      inc	{1}+1
+     80  8000				   .1
+     81  8000					      endm
+     82  8000
+     83  8000					      mac	dec16
+     84  8000					      lda	{1}
+     85  8000					      cmp	#0
+     86  8000					      bne	.1
+     87  8000					      dec	{1}+1
+     88  8000				   .1
+     89  8000					      dec	{1}
+     90  8000					      endm
+     91  8000
+     92  8000
+     93  8000							;; ----------------------------------------------------------
+     94  8000
+     95  8000				   _debug     subroutine
+     96  8000		       60		      rts
+     97  8001
+     98  8001							;; ----------------------------------------------------------
+     99  8001
+    100  8001					      mac	debug_trace
+    101  8001					      load_address	debug_ptr, [{1}]
+    102  8001					      jsr	_debug
+    103  8001					      endm
+    104  8001
+    105  8001							;; ----------------------------------------------------------
+    106  8001
+    107  8001				   memcmp     subroutine
+    108  8001				   .loop
+    109  8001		       a5 88		      lda	memcmp_length
+    110  8003		       c9 00		      cmp	#0
+    111  8005		       d0 09		      bne	.1
+    112  8007		       a5 89		      lda	memcmp_length+1
+    113  8009		       c9 00		      cmp	#0
+    114  800b		       d0 03		      bne	.1
+    115  800d
+    116  800d		       a9 00		      lda	#0
+    117  800f		       60		      rts
+    118  8010				   .1
+    119  8010							;ldx #0
+    120  8010							;lda (memcmp_a_ptr,X)
+    121  8010							;jsr _putc
+    122  8010
+    123  8010							;ldx #0
+    124  8010							;lda (memcmp_b_ptr,X)
+    125  8010							;jsr _putc
+    126  8010
+    127  8010		       a2 00		      ldx	#0
+    128  8012		       a1 84		      lda	(memcmp_a_ptr,X)
+    129  8014		       c1 86		      cmp	(memcmp_b_ptr,X)
+    130  8016		       f0 03		      beq	.2
+    131  8018
+    132  8018		       a9 01		      lda	#1
+    133  801a		       60		      rts
+    134  801b
+    135  801b				   .2
+      0  801b					      inc16	memcmp_a_ptr
+      1  801b		       e6 84		      inc	memcmp_a_ptr
+      2  801d		       d0 02		      bne	.1
+      3  801f		       e6 85		      inc	memcmp_a_ptr+1
+      4  8021				   .1
+      0  8021					      inc16	memcmp_b_ptr
+      1  8021		       e6 86		      inc	memcmp_b_ptr
+      2  8023		       d0 02		      bne	.1
+      3  8025		       e6 87		      inc	memcmp_b_ptr+1
+      4  8027				   .1
+      0  8027					      dec16	memcmp_length
+      1  8027		       a5 88		      lda	memcmp_length
+      2  8029		       c9 00		      cmp	#0
+      3  802b		       d0 02		      bne	.1
+      4  802d		       c6 89		      dec	memcmp_length+1
+      5  802f				   .1
+      6  802f		       c6 88		      dec	memcmp_length
+    139  8031		       4c 01 80 	      jmp	.loop
+    140  8034
+    141  8034							;; ==========================================================
+    142  8034
+    143  8034		       f2 00	   DISK_STATUS_REGISTER equ	$F200
+    144  8034		       f2 01	   DISK_COMMAND_REGISTER equ	$F201
+    145  8034		       f2 10	   DISK_ADDRESS_LOW_REGISTER equ	$F210
+    146  8034		       f2 11	   DISK_ADDRESS_HIGH_REGISTER equ	$F211
+    147  8034		       f2 20	   DISK_BUFFER_LOW_REGISTER equ	$F220
+    148  8034		       f2 21	   DISK_BUFFER_HIGH_REGISTER equ	$F221
+    149  8034
+    150  8034							;; ----------------------------------------------------------
+    151  8034
+    152  8034				   disk_read_sector subroutine
+      0  8034					      debug_trace	trace_disk_read_sector
+      0  8034					      load_address	debug_ptr, [trace_disk_read_sector]
+      1  8034		       a9 10		      lda	#<[[trace_disk_read_sector]]
+      2  8036		       85 82		      sta	[debug_ptr]
+      3  8038		       a9 40		      lda	#>[[trace_disk_read_sector]]
+      4  803a		       85 83		      sta	[debug_ptr] + 1
+      2  803c		       20 00 80 	      jsr	_debug
+    154  803f
+    155  803f		       a5 8c		      lda	disk_address
+    156  8041		       8d 10 f2 	      sta	DISK_ADDRESS_LOW_REGISTER
+    157  8044		       a5 8d		      lda	disk_address + 1
+    158  8046		       8d 11 f2 	      sta	DISK_ADDRESS_HIGH_REGISTER
+    159  8049
+    160  8049		       a9 00		      lda	#<disk_sector_data
+    161  804b		       8d 20 f2 	      sta	DISK_BUFFER_LOW_REGISTER
+    162  804e		       a9 01		      lda	#>disk_sector_data
+    163  8050		       8d 21 f2 	      sta	DISK_BUFFER_HIGH_REGISTER
+    164  8053
+    165  8053		       a9 81		      lda	#$81
+    166  8055		       8d 01 f2 	      sta	DISK_COMMAND_REGISTER
+    167  8058		       60		      rts
+    168  8059
+    169  8059							;; ----------------------------------------------------------
+    170  8059
+    171 U0095					      seg.u	data
+    172 U0095
+    173 U0095				   disk_scan_prefix
+    174 U0095		       00 00		      ds	2
+    175 U0097
+    176 U0097				   disk_scan_prefix_length
+    177 U0097		       00 00		      ds	2
+    178 U0099
+    179 U0099				   disk_scan_index
+    180 U0099		       00		      ds	1
+    181 U009a
+    182  8059					      seg	code
+    183  8059
+    184  8059				   disk_scan_for_path
+    185  8059					      subroutine
+    186  8059
+    187  8059		       a9 00		      lda	#00
+    188  805b		       85 99		      sta	disk_scan_index
+    189  805d
+    190  805d				   .loop
+    191  805d		       a5 99		      lda	disk_scan_index
+    192  805f		       85 8c		      sta	disk_address
+    193  8061		       a9 00		      lda	#0
+    194  8063		       85 8d		      sta	disk_address+1
+    195  8065		       20 34 80 	      jsr	disk_read_sector
+    196  8068
+    197  8068							;load_address hexdump_ptr, disk_sector_data
+    198  8068							;jsr print_hexline
+    199  8068
+    200  8068		       a5 95		      lda	disk_scan_prefix
+    201  806a		       85 84		      sta	memcmp_a_ptr
+    202  806c		       a5 96		      lda	disk_scan_prefix+1
+    203  806e		       85 85		      sta	memcmp_a_ptr+1
+      0  8070					      load_address	memcmp_b_ptr, disk_sector_data
+      1  8070		       a9 00		      lda	#<[disk_sector_data]
+      2  8072		       85 86		      sta	[memcmp_b_ptr]
+      3  8074		       a9 01		      lda	#>[disk_sector_data]
+      4  8076		       85 87		      sta	[memcmp_b_ptr] + 1
+    205  8078		       a5 97		      lda	disk_scan_prefix_length
+    206  807a		       85 88		      sta	memcmp_length
+    207  807c		       a5 98		      lda	disk_scan_prefix_length+1
+    208  807e		       85 89		      sta	memcmp_length+1
+    209  8080
+    210  8080							;load_address hexdump_ptr, disk_sector_data
+    211  8080							;jsr print_hexline
+    212  8080
+    213  8080		       20 01 80 	      jsr	memcmp
+    214  8083		       c9 00		      cmp	#0
+    215  8085		       f0 0b		      beq	.found
+    216  8087
+    217  8087		       e6 99		      inc	disk_scan_index
+    218  8089		       a5 99		      lda	disk_scan_index
+    219  808b		       c9 40		      cmp	#$40
+    220  808d		       d0 ce		      bne	.loop
+    221  808f
+    222  808f		       a9 01		      lda	#1
+    223  8091		       60		      rts
+    224  8092
+    225  8092				   .found
+    226  8092		       a9 00		      lda	#0
+    227  8094		       60		      rts
+    228  8095
+    229  8095
+    230  8095							;; ==========================================================
+    231  8095
+    232  8095		       f0 00	   CONSOLE_IN equ	$F000
+    233  8095		       f0 01	   CONSOLE_OUT equ	$F001
+    234  8095
+    235  8095							;; ----------------------------------------------------------
+    236  8095
+    237  8095				   _getc      subroutine
+    238  8095		       ad 00 f0 	      lda	CONSOLE_IN
+    239  8098		       60		      rts
+    240  8099
+    241  8099							;; ----------------------------------------------------------
+    242  8099
+    243  8099				   _putc      subroutine
+    244  8099		       8d 01 f0 	      sta	CONSOLE_OUT
+    245  809c		       60		      rts
+    246  809d
+    247  809d							;; ----------------------------------------------------------
+    248  809d
+    249  809d				   _puts      subroutine
+    250  809d				   .loop
+    251  809d		       a2 00		      ldx	#$00
+    252  809f		       a1 80		      lda	(puts_ptr,X)
+    253  80a1		       8d 01 f0 	      sta	CONSOLE_OUT
+    254  80a4		       c9 00		      cmp	#0
+    255  80a6		       f0 09		      beq	.done
+    256  80a8
+      0  80a8					      inc16	puts_ptr
+      1  80a8		       e6 80		      inc	puts_ptr
+      2  80aa		       d0 02		      bne	.1
+      3  80ac		       e6 81		      inc	puts_ptr+1
+      4  80ae				   .1
+    258  80ae		       4c 9d 80 	      jmp	.loop
+    259  80b1
+    260  80b1				   .done
+    261  80b1		       60		      rts
+    262  80b2
+    263  80b2							;; ----------------------------------------------------------
+    264  80b2
+    265  80b2					      mac	puts
+    266  80b2					      load_address	puts_ptr, [{1}]
+    267  80b2					      jsr	_puts
+    268  80b2					      endm
+    269  80b2
+    270  80b2							;; ----------------------------------------------------------
+    271  80b2
+    272  80b2				   convert_nibble
+    273  80b2					      subroutine
+    274  80b2		       c9 30		      cmp	#'0
+    275  80b4		       30 14		      bmi	.invalid
+    276  80b6		       c9 40		      cmp	#$40
+    277  80b8		       30 19		      bmi	.digit
+    278  80ba
+    279  80ba		       c9 41		      cmp	#'A
+    280  80bc		       30 0c		      bmi	.invalid
+    281  80be		       c9 47		      cmp	#'G
+    282  80c0		       30 0b		      bmi	.alpha
+    283  80c2
+    284  80c2		       c9 61		      cmp	#'a
+    285  80c4		       30 04		      bmi	.invalid
+    286  80c6		       c9 67		      cmp	#'g
+    287  80c8		       30 03		      bmi	.alpha
+    288  80ca
+    289  80ca				   .invalid
+    290  80ca		       a9 ff		      lda	#$ff
+    291  80cc		       60		      rts
+    292  80cd
+    293  80cd				   .alpha
+    294  80cd		       29 0f		      and	#$0f
+    295  80cf		       18		      clc
+    296  80d0		       69 09		      adc	#9
+    297  80d2		       60		      rts
+    298  80d3
+    299  80d3				   .digit
+    300  80d3		       29 0f		      and	#$0f
+    301  80d5		       60		      rts
+    302  80d6
+    303  80d6				   scanf_word
+    304  80d6					      subroutine
+    305  80d6		       a2 00		      ldx	#0
+    306  80d8		       a1 8e		      lda	(scanf_word_ptr),X
+    307  80da
+    308  80da		       20 b2 80 	      jsr	convert_nibble
+    309  80dd		       c9 ff		      cmp	#$ff
+    310  80df		       f0 38		      beq	.invalid
+    311  80e1
+    312  80e1		       0a		      asl
+    313  80e2		       0a		      asl
+    314  80e3		       0a		      asl
+    315  80e4		       0a		      asl
+    316  80e5		       85 91		      sta	scanf_word_result+1
+    317  80e7
+    318  80e7		       a0 01		      ldy	#1
+    319  80e9		       b1 8e		      lda	(scanf_word_ptr),Y
+    320  80eb
+    321  80eb		       20 b2 80 	      jsr	convert_nibble
+    322  80ee		       c9 ff		      cmp	#$ff
+    323  80f0		       f0 27		      beq	.invalid
+    324  80f2
+    325  80f2		       05 91		      ora	scanf_word_result+1
+    326  80f4		       85 91		      sta	scanf_word_result+1
+    327  80f6
+    328  80f6		       a0 02		      ldy	#2
+    329  80f8		       b1 8e		      lda	(scanf_word_ptr),Y
+    330  80fa
+    331  80fa		       20 b2 80 	      jsr	convert_nibble
+    332  80fd		       c9 ff		      cmp	#$ff
+    333  80ff		       f0 18		      beq	.invalid
+    334  8101
+    335  8101		       0a		      asl
+    336  8102		       0a		      asl
+    337  8103		       0a		      asl
+    338  8104		       0a		      asl
+    339  8105		       85 90		      sta	scanf_word_result
+    340  8107
+    341  8107		       a0 03		      ldy	#3
+    342  8109		       b1 8e		      lda	(scanf_word_ptr),Y
+    343  810b
+    344  810b		       20 b2 80 	      jsr	convert_nibble
+    345  810e		       c9 ff		      cmp	#$ff
+    346  8110		       f0 07		      beq	.invalid
+    347  8112
+    348  8112		       05 90		      ora	scanf_word_result
+    349  8114		       85 90		      sta	scanf_word_result
+    350  8116
+    351  8116		       a9 00		      lda	#0
+    352  8118		       60		      rts
+    353  8119
+    354  8119				   .invalid
+    355  8119		       a9 ff		      lda	#$ff
+    356  811b		       60		      rts
+    357  811c
+    358  811c							;; ----------------------------------------------------------
+    359  811c
+    360  811c				   scanf_byte
+    361  811c					      subroutine
+    362  811c		       a2 00		      ldx	#0
+    363  811e		       a1 92		      lda	(scanf_byte_ptr),X
+    364  8120
+    365  8120		       20 b2 80 	      jsr	convert_nibble
+    366  8123		       c9 ff		      cmp	#$ff
+    367  8125		       f0 18		      beq	.invalid
+    368  8127
+    369  8127		       0a		      asl
+    370  8128		       0a		      asl
+    371  8129		       0a		      asl
+    372  812a		       0a		      asl
+    373  812b		       85 94		      sta	scanf_byte_result
+    374  812d
+    375  812d		       a0 01		      ldy	#1
+    376  812f		       b1 92		      lda	(scanf_byte_ptr),Y
+    377  8131
+    378  8131		       20 b2 80 	      jsr	convert_nibble
+    379  8134		       c9 ff		      cmp	#$ff
+    380  8136		       f0 07		      beq	.invalid
+    381  8138
+    382  8138		       05 94		      ora	scanf_byte_result
+    383  813a		       85 94		      sta	scanf_byte_result
+    384  813c
+    385  813c		       a9 00		      lda	#0
+    386  813e		       60		      rts
+    387  813f
+    388  813f				   .invalid
+    389  813f		       a9 ff		      lda	#$ff
+    390  8141		       60		      rts
+    391  8142
+    392  8142							;; ----------------------------------------------------------
+    393  8142
+    394  8142				   print_hex_byte
+    395  8142					      subroutine
+    396  8142		       aa		      tax
+    397  8143
+    398  8143		       4a		      lsr
+    399  8144		       4a		      lsr
+    400  8145		       4a		      lsr
+    401  8146		       4a		      lsr
+    402  8147		       a8		      tay
+    403  8148		       b9 00 40 	      lda	hexdigits,Y
+    404  814b		       20 99 80 	      jsr	_putc
+    405  814e
+    406  814e		       8a		      txa
+    407  814f		       29 0f		      and	#$f
+    408  8151		       a8		      tay
+    409  8152		       b9 00 40 	      lda	hexdigits,Y
+    410  8155		       20 99 80 	      jsr	_putc
+    411  8158
+    412  8158		       60		      rts
+    413  8159
+    414  8159							;; ----------------------------------------------------------
+    415  8159
+    416  8159				   print_newline
+    417  8159					      subroutine
+    418  8159		       a9 0a		      lda	#$0a
+    419  815b		       20 99 80 	      jsr	_putc
+    420  815e		       a9 0d		      lda	#$0d
+    421  8160		       20 99 80 	      jsr	_putc
+    422  8163		       60		      rts
+    423  8164
+    424  8164							;; ----------------------------------------------------------
+    425  8164
+    426  8164				   print_hexline
+    427  8164					      subroutine
+    428  8164		       a0 00		      ldy	#0
+    429  8166
+    430  8166				   .loop
+    431  8166		       98		      tya
+    432  8167		       48		      pha
+    433  8168		       b1 8a		      lda	(hexdump_ptr),Y
+    434  816a		       20 42 81 	      jsr	print_hex_byte
+    435  816d		       a9 20		      lda	#$20
+    436  816f		       20 99 80 	      jsr	_putc
+    437  8172		       68		      pla
+    438  8173		       a8		      tay
+    439  8174
+    440  8174		       c8		      iny
+    441  8175		       c0 10		      cpy	#$10
+    442  8177		       d0 ed		      bne	.loop
+    443  8179
+    444  8179				   .done
+    445  8179		       20 59 81 	      jsr	print_newline
+    446  817c		       60		      rts
+    447  817d
+    448  817d							;; ==========================================================
+    449  817d
+    450  4021					      seg	cdata
+    451  4021
+    452  4021				   fw_banner
+    453  4021		       53 74 61 72*	      .byte.b	"Starting ArkOS...", 0
+    454  4033
+    455  4033				   fw_version_label
+    456  4033		       46 69 72 6d*	      .byte.b	"Firmware version: ", 0
+    457  4046
+    458  4046				   fw_version
+    459  4046		       31 2e 31 2e*	      .byte.b	"1.1.B", 0
+    460  404c
+    461  404c				   hw_version_label
+    462  404c		       48 61 72 64*	      .byte.b	"Hardware version: ", 0
+    463  405f
+    464  405f				   memory_map_label
+    465  405f		       4d 65 6d 6f*	      .byte.b	"Memory map:", CR, 0
+    466  406c
+    467  406c				   memory_map_0
+    468  406c		       20 20 24 30*	      .byte.b	"  $0000:$00FF - RAM", CR, 0
+    469  4081
+    470  4081				   memory_map_1
+    471  4081		       20 20 24 30*	      .byte.b	"  $0100:$01FF - RAM (stack)", CR, 0
+    472  409e
+    473  409e				   memory_map_2
+    474  409e		       20 20 24 30*	      .byte.b	"  $0200:$1FFF - RAM", CR, 0
+    475  40b3
+    476  40b3				   memory_map_3
+    477  40b3		       20 20 24 34*	      .byte.b	"  $4000:$EFFF - PROM", CR, 0
+    478  40c9
+    479  40c9				   memory_map_4
+    480  40c9		       20 20 24 46*	      .byte.b	"  $F000:$FF00 - MMIO", CR, 0
+    481  40df
+    482  40df				   memory_map_5
+    483  40df		       20 20 24 46*	      .byte.b	"  $FF00:$FFFF - PROM", CR, 0
+    484  40f5
+    485  40f5
+    486  817d					      seg	code
+    487  817d
+    488  817d		       f4 00	   HW_VERSION_STRING equ	$F400
+    489  817d
+    490  817d							;; ----------------------------------------------------------
+    491  817d
+    492  817d				   print_memory_map
+    493  817d					      subroutine
+      0  817d					      puts	memory_map_label
+      0  817d					      load_address	puts_ptr, [memory_map_label]
+      1  817d		       a9 5f		      lda	#<[[memory_map_label]]
+      2  817f		       85 80		      sta	[puts_ptr]
+      3  8181		       a9 40		      lda	#>[[memory_map_label]]
+      4  8183		       85 81		      sta	[puts_ptr] + 1
+      2  8185		       20 9d 80 	      jsr	_puts
+      0  8188					      puts	memory_map_0
+      0  8188					      load_address	puts_ptr, [memory_map_0]
+      1  8188		       a9 6c		      lda	#<[[memory_map_0]]
+      2  818a		       85 80		      sta	[puts_ptr]
+      3  818c		       a9 40		      lda	#>[[memory_map_0]]
+      4  818e		       85 81		      sta	[puts_ptr] + 1
+      2  8190		       20 9d 80 	      jsr	_puts
+      0  8193					      puts	memory_map_1
+      0  8193					      load_address	puts_ptr, [memory_map_1]
+      1  8193		       a9 81		      lda	#<[[memory_map_1]]
+      2  8195		       85 80		      sta	[puts_ptr]
+      3  8197		       a9 40		      lda	#>[[memory_map_1]]
+      4  8199		       85 81		      sta	[puts_ptr] + 1
+      2  819b		       20 9d 80 	      jsr	_puts
+      0  819e					      puts	memory_map_2
+      0  819e					      load_address	puts_ptr, [memory_map_2]
+      1  819e		       a9 9e		      lda	#<[[memory_map_2]]
+      2  81a0		       85 80		      sta	[puts_ptr]
+      3  81a2		       a9 40		      lda	#>[[memory_map_2]]
+      4  81a4		       85 81		      sta	[puts_ptr] + 1
+      2  81a6		       20 9d 80 	      jsr	_puts
+      0  81a9					      puts	memory_map_3
+      0  81a9					      load_address	puts_ptr, [memory_map_3]
+      1  81a9		       a9 b3		      lda	#<[[memory_map_3]]
+      2  81ab		       85 80		      sta	[puts_ptr]
+      3  81ad		       a9 40		      lda	#>[[memory_map_3]]
+      4  81af		       85 81		      sta	[puts_ptr] + 1
+      2  81b1		       20 9d 80 	      jsr	_puts
+      0  81b4					      puts	memory_map_4
+      0  81b4					      load_address	puts_ptr, [memory_map_4]
+      1  81b4		       a9 c9		      lda	#<[[memory_map_4]]
+      2  81b6		       85 80		      sta	[puts_ptr]
+      3  81b8		       a9 40		      lda	#>[[memory_map_4]]
+      4  81ba		       85 81		      sta	[puts_ptr] + 1
+      2  81bc		       20 9d 80 	      jsr	_puts
+      0  81bf					      puts	memory_map_5
+      0  81bf					      load_address	puts_ptr, [memory_map_5]
+      1  81bf		       a9 df		      lda	#<[[memory_map_5]]
+      2  81c1		       85 80		      sta	[puts_ptr]
+      3  81c3		       a9 40		      lda	#>[[memory_map_5]]
+      4  81c5		       85 81		      sta	[puts_ptr] + 1
+      2  81c7		       20 9d 80 	      jsr	_puts
+    501  81ca		       60		      rts
+    502  81cb
+    503  81cb							;; ----------------------------------------------------------
+    504  81cb
+    505  81cb				   init       subroutine
+      0  81cb					      puts	fw_banner
+      0  81cb					      load_address	puts_ptr, [fw_banner]
+      1  81cb		       a9 21		      lda	#<[[fw_banner]]
+      2  81cd		       85 80		      sta	[puts_ptr]
+      3  81cf		       a9 40		      lda	#>[[fw_banner]]
+      4  81d1		       85 81		      sta	[puts_ptr] + 1
+      2  81d3		       20 9d 80 	      jsr	_puts
+    507  81d6		       20 59 81 	      jsr	print_newline
+      0  81d9					      puts	hw_version_label
+      0  81d9					      load_address	puts_ptr, [hw_version_label]
+      1  81d9		       a9 4c		      lda	#<[[hw_version_label]]
+      2  81db		       85 80		      sta	[puts_ptr]
+      3  81dd		       a9 40		      lda	#>[[hw_version_label]]
+      4  81df		       85 81		      sta	[puts_ptr] + 1
+      2  81e1		       20 9d 80 	      jsr	_puts
+    509  81e4		       a9 00		      lda	#$00
+    510  81e6		       85 80		      sta	puts_ptr
+    511  81e8		       a9 f4		      lda	#$F4
+    512  81ea		       85 81		      sta	puts_ptr + 1
+    513  81ec		       20 9d 80 	      jsr	_puts
+    514  81ef		       20 59 81 	      jsr	print_newline
+      0  81f2					      puts	fw_version_label
+      0  81f2					      load_address	puts_ptr, [fw_version_label]
+      1  81f2		       a9 33		      lda	#<[[fw_version_label]]
+      2  81f4		       85 80		      sta	[puts_ptr]
+      3  81f6		       a9 40		      lda	#>[[fw_version_label]]
+      4  81f8		       85 81		      sta	[puts_ptr] + 1
+      2  81fa		       20 9d 80 	      jsr	_puts
+      0  81fd					      puts	fw_version
+      0  81fd					      load_address	puts_ptr, [fw_version]
+      1  81fd		       a9 46		      lda	#<[[fw_version]]
+      2  81ff		       85 80		      sta	[puts_ptr]
+      3  8201		       a9 40		      lda	#>[[fw_version]]
+      4  8203		       85 81		      sta	[puts_ptr] + 1
+      2  8205		       20 9d 80 	      jsr	_puts
+    517  8208		       20 59 81 	      jsr	print_newline
+    518  820b		       20 7d 81 	      jsr	print_memory_map
+    519  820e		       60		      rts
+    520  820f
+    521  820f							;; ----------------------------------------------------------
+    522  820f
+    523 U009a					      seg.u	data
+    524 U009a
+    525 U009a				   print_sector_sector
+    526 U009a		       00 00		      ds	2
+    527 U009c
+    528  820f					      seg	code
+    529  820f
+    530  820f				   print_sector_string
+    531  820f					      subroutine
+    532  820f
+    533  820f		       a5 9a		      lda	print_sector_sector
+    534  8211		       85 8c		      sta	disk_address
+    535  8213		       a5 9b		      lda	print_sector_sector + 1
+    536  8215		       85 8d		      sta	disk_address + 1
+    537  8217		       20 34 80 	      jsr	disk_read_sector
+    538  821a
+    539  821a		       a2 00		      ldx	#0
+    540  821c				   .loop
+    541  821c		       bd 00 01 	      lda	disk_sector_data,X
+    542  821f		       c9 00		      cmp	#0
+    543  8221		       f0 08		      beq	.done
+    544  8223		       20 99 80 	      jsr	_putc
+    545  8226		       e8		      inx
+    546  8227		       e0 40		      cpx	#$40
+    547  8229		       d0 f1		      bne	.loop
+    548  822b
+    549  822b				   .done
+    550  822b		       60		      rts
+    551  822c
+    552  822c							;; ----------------------------------------------------------
+    553  822c
+    554 U009c					      seg.u	data
+    555 U009c
+    556 U009c				   print_file_count
+    557 U009c		       00 00		      ds	2
+    558 U009e
+    559 U009e				   print_file_sector
+    560 U009e		       00 00		      ds	2
+    561 U00a0
+    562  822c					      seg	code
+    563  822c
+    564  822c				   print_file_string
+    565  822c					      subroutine
+    566  822c		       a2 30		      ldx	#$30
+    567  822e		       bd 00 01 	      lda	disk_sector_data,X
+    568  8231		       85 9e		      sta	print_file_sector
+    569  8233		       e8		      inx
+    570  8234		       bd 00 01 	      lda	disk_sector_data,X
+    571  8237		       85 9f		      sta	print_file_sector+1
+    572  8239		       e8		      inx
+    573  823a		       bd 00 01 	      lda	disk_sector_data,X
+    574  823d		       85 9c		      sta	print_file_count
+    575  823f		       e8		      inx
+    576  8240		       bd 00 01 	      lda	disk_sector_data,X
+    577  8243		       85 9d		      sta	print_file_count+1
+    578  8245
+    579  8245				   .loop
+    580  8245		       a5 9c		      lda	print_file_count
+    581  8247		       c9 00		      cmp	#0
+    582  8249		       d0 06		      bne	.1
+    583  824b		       a5 9d		      lda	print_file_count + 1
+    584  824d		       c9 00		      cmp	#0
+    585  824f		       f0 1e		      beq	.done
+    586  8251				   .1
+    587  8251		       a5 9e		      lda	print_file_sector
+    588  8253		       85 9a		      sta	print_sector_sector
+    589  8255		       a5 9f		      lda	print_file_sector + 1
+    590  8257		       85 9b		      sta	print_sector_sector + 1
+    591  8259		       20 0f 82 	      jsr	print_sector_string
+    592  825c
+      0  825c					      dec16	print_file_count
+      1  825c		       a5 9c		      lda	print_file_count
+      2  825e		       c9 00		      cmp	#0
+      3  8260		       d0 02		      bne	.1
+      4  8262		       c6 9d		      dec	print_file_count+1
+      5  8264				   .1
+      6  8264		       c6 9c		      dec	print_file_count
+      0  8266					      inc16	print_file_sector
+      1  8266		       e6 9e		      inc	print_file_sector
+      2  8268		       d0 02		      bne	.1
+      3  826a		       e6 9f		      inc	print_file_sector+1
+      4  826c				   .1
+    595  826c		       4c 45 82 	      jmp	.loop
+    596  826f
+    597  826f				   .done
+    598  826f		       60		      rts
+    599  8270
+    600  8270							;; ----------------------------------------------------------
+    601  8270
+    602  40f5					      seg	cdata
+    603  40f5
+    604  40f5				   motd_file_path
+    605  40f5		       2f 65 74 63*	      .byte.b	"/etc/motd", 0
+    606  40ff
+    607  40ff		       00 07	   motd_file_path_length equ	$07
+    608  40ff
+    609  40ff				   motd_lookup_failed
+    610  40ff		       45 52 52 4f*	      .byte.b	"ERROR: failed to find /etc/motd", CR, 0
+    611  4120
+    612  4120				   motd_lookup_succeeded
+    613  4120		       46 6f 75 6e*	      .byte.b	"Found /etc/motd!", CR, 0
+    614  4132
+    615  4132				   mail_file_path
+    616  4132		       2f 76 61 72*	      .byte.b	"/var/mail/spool/atredis", 0
+    617  414a
+    618  414a		       00 17	   mail_file_path_length equ	$17
+    619  414a
+    620  414a				   mail_lookup_begin
+    621  414a		       43 68 65 63*	      .byte.b	"Checking mail for user atredis...", CR, 0
+    622  416d
+    623  416d				   mail_lookup_succeeded
+    624  416d		       46 6f 75 6e*	      .byte.b	"Found mail!", CR, CR, 0
+    625  417b
+    626  417b				   mail_lookup_failed
+    627  417b		       4e 6f 20 6d*	      .byte.b	"No mail.", CR, 0
+    628  4185
+    629  8270					      seg	code
+    630  8270
+    631  8270				   print_motd
+    632  8270					      subroutine
+      0  8270					      load_address	disk_scan_prefix, motd_file_path
+      1  8270		       a9 f5		      lda	#<[motd_file_path]
+      2  8272		       85 95		      sta	[disk_scan_prefix]
+      3  8274		       a9 40		      lda	#>[motd_file_path]
+      4  8276		       85 96		      sta	[disk_scan_prefix] + 1
+    634  8278		       a9 07		      lda	#motd_file_path_length
+    635  827a		       85 97		      sta	disk_scan_prefix_length
+    636  827c		       a9 00		      lda	#0
+    637  827e		       85 98		      sta	disk_scan_prefix_length + 1
+    638  8280		       20 59 80 	      jsr	disk_scan_for_path
+    639  8283
+    640  8283		       c9 00		      cmp	#0
+    641  8285		       d0 0f		      bne	.failed
+    642  8287
+      0  8287					      puts	motd_lookup_succeeded
+      0  8287					      load_address	puts_ptr, [motd_lookup_succeeded]
+      1  8287		       a9 20		      lda	#<[[motd_lookup_succeeded]]
+      2  8289		       85 80		      sta	[puts_ptr]
+      3  828b		       a9 41		      lda	#>[[motd_lookup_succeeded]]
+      4  828d		       85 81		      sta	[puts_ptr] + 1
+      2  828f		       20 9d 80 	      jsr	_puts
+    644  8292		       20 2c 82 	      jsr	print_file_string
+    645  8295		       60		      rts
+    646  8296
+    647  8296				   .failed
+      0  8296					      puts	motd_lookup_failed
+      0  8296					      load_address	puts_ptr, [motd_lookup_failed]
+      1  8296		       a9 ff		      lda	#<[[motd_lookup_failed]]
+      2  8298		       85 80		      sta	[puts_ptr]
+      3  829a		       a9 40		      lda	#>[[motd_lookup_failed]]
+      4  829c		       85 81		      sta	[puts_ptr] + 1
+      2  829e		       20 9d 80 	      jsr	_puts
+    649  82a1		       60		      rts
+    650  82a2
+    651  82a2							;; ----------------------------------------------------------
+    652  82a2
+    653  82a2				   print_mail
+    654  82a2					      subroutine
+    655  82a2
+      0  82a2					      puts	mail_lookup_begin
+      0  82a2					      load_address	puts_ptr, [mail_lookup_begin]
+      1  82a2		       a9 4a		      lda	#<[[mail_lookup_begin]]
+      2  82a4		       85 80		      sta	[puts_ptr]
+      3  82a6		       a9 41		      lda	#>[[mail_lookup_begin]]
+      4  82a8		       85 81		      sta	[puts_ptr] + 1
+      2  82aa		       20 9d 80 	      jsr	_puts
+    657  82ad
+      0  82ad					      load_address	disk_scan_prefix, mail_file_path
+      1  82ad		       a9 32		      lda	#<[mail_file_path]
+      2  82af		       85 95		      sta	[disk_scan_prefix]
+      3  82b1		       a9 41		      lda	#>[mail_file_path]
+      4  82b3		       85 96		      sta	[disk_scan_prefix] + 1
+    659  82b5		       a9 17		      lda	#mail_file_path_length
+    660  82b7		       85 97		      sta	disk_scan_prefix_length
+    661  82b9		       a9 00		      lda	#0
+    662  82bb		       85 98		      sta	disk_scan_prefix_length + 1
+    663  82bd		       20 59 80 	      jsr	disk_scan_for_path
+    664  82c0
+    665  82c0		       c9 00		      cmp	#0
+    666  82c2		       d0 0f		      bne	.failed
+    667  82c4
+      0  82c4					      puts	mail_lookup_succeeded
+      0  82c4					      load_address	puts_ptr, [mail_lookup_succeeded]
+      1  82c4		       a9 6d		      lda	#<[[mail_lookup_succeeded]]
+      2  82c6		       85 80		      sta	[puts_ptr]
+      3  82c8		       a9 41		      lda	#>[[mail_lookup_succeeded]]
+      4  82ca		       85 81		      sta	[puts_ptr] + 1
+      2  82cc		       20 9d 80 	      jsr	_puts
+    669  82cf		       20 2c 82 	      jsr	print_file_string
+    670  82d2		       60		      rts
+    671  82d3
+    672  82d3				   .failed
+      0  82d3					      puts	mail_lookup_failed
+      0  82d3					      load_address	puts_ptr, [mail_lookup_failed]
+      1  82d3		       a9 7b		      lda	#<[[mail_lookup_failed]]
+      2  82d5		       85 80		      sta	[puts_ptr]
+      3  82d7		       a9 41		      lda	#>[[mail_lookup_failed]]
+      4  82d9		       85 81		      sta	[puts_ptr] + 1
+      2  82db		       20 9d 80 	      jsr	_puts
+    674  82de		       60		      rts
+    675  82df
+    676  82df							;; ----------------------------------------------------------
+    677  82df
+    678  4185					      seg	cdata
+    679  4185
+    680  4185				   cli_prompt
+    681  4185		       61 72 6b 6f*	      .byte.b	"arkos> ", 0
+    682  418d
+    683  418d				   cli_invalid_command
+    684  418d		       49 6e 76 61*	      .byte.b	"Invalid command", CR, 0
+    685  419e
+    686  419e				   cli_command_help_prefix
+    687  419e		       68 65 6c 70	      .byte.b	"help"
+    688  41a2
+    689  41a2		       00 04	   cli_command_help_prefix_length equ	$04
+    690  41a2
+    691  41a2				   cli_command_read_prefix
+    692  41a2		       72 65 61 64*	      .byte.b	"read "
+    693  41a7
+    694  41a7		       00 05	   cli_command_read_prefix_length equ	$05
+    695  41a7
+    696  41a7				   cli_command_write_prefix
+    697  41a7		       77 72 69 74*	      .byte.b	"write "
+    698  41ad
+    699  41ad		       00 06	   cli_command_write_prefix_length equ	$06
+    700  41ad
+    701  41ad				   cli_command_call_prefix
+    702  41ad		       63 61 6c 6c*	      .byte.b	"call "
+    703  41b2
+    704  41b2		       00 05	   cli_command_call_prefix_length equ	$05
+    705  41b2
+    706  41b2				   cli_help_0
+    707  41b2		       0a		      .byte.b	CR
+    708  41b3		       43 6f 6d 6d*	      .byte.b	"Commands:", CR
+    709  41bd		       20 20 68 65*	      .byte.b	"  help", CR
+    710  41c4		       20 20 20 20*	      .byte.b	"    This message", CR
+    711  41d5		       20 20 72 65*	      .byte.b	"  read", CR
+    712  41dc		       20 20 20 20*	      .byte.b	"    'read F400' reads the byte at $F400", CR
+    713  4204							;; .byte "  write", CR
+    714  4204							;; .byte "    'write 0004 41' writes an $41 to $0004", CR
+    715  4204		       00		      .byte.b	0
+    716  4205
+    717 U00a0					      seg.u	data
+    718 U00a0
+    719 U00a0				   cli_buffer_index
+    720 U00a0		       00		      ds	1
+    721 U00a1
+    722 U0140					      seg.u	hidata
+    723 U0140
+    724 U0140				   cli_buffer
+    725 U0140		       00 00 00 00*	      ds	$40
+    726 U0180
+    727 U0180				   cli_call_tramp
+    728 U0180		       00 00 00 00*	      ds	$10
+    729 U0190
+    730  82df					      seg	code
+    731  82df
+    732  82df				   cli_read_command
+    733  82df					      subroutine
+    734  82df		       a9 00		      lda	#0
+    735  82e1		       85 a0		      sta	cli_buffer_index
+    736  82e3
+    737  82e3				   .loop
+    738  82e3		       20 95 80 	      jsr	_getc
+    739  82e6		       c9 0a		      cmp	#$0a
+    740  82e8		       f0 0c		      beq	.done
+    741  82ea
+    742  82ea		       a6 a0		      ldx	cli_buffer_index
+    743  82ec		       9d 40 01 	      sta	cli_buffer,X
+    744  82ef		       e8		      inx
+    745  82f0		       86 a0		      stx	cli_buffer_index
+    746  82f2		       e0 3f		      cpx	#$3f
+    747  82f4		       d0 ed		      bne	.loop
+    748  82f6
+    749  82f6				   .done
+    750  82f6		       a6 a0		      ldx	cli_buffer_index
+    751  82f8		       a9 00		      lda	#0
+    752  82fa		       9d 40 01 	      sta	cli_buffer,X
+    753  82fd		       60		      rts
+    754  82fe
+    755  82fe							;; ----------------------------------------------------------
+    756  82fe
+    757  82fe				   cli_handle_command_help
+    758  82fe					      subroutine
+      0  82fe					      load_address	memcmp_a_ptr, cli_command_help_prefix
+      1  82fe		       a9 9e		      lda	#<[cli_command_help_prefix]
+      2  8300		       85 84		      sta	[memcmp_a_ptr]
+      3  8302		       a9 41		      lda	#>[cli_command_help_prefix]
+      4  8304		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8306					      load_address	memcmp_b_ptr, cli_buffer
+      1  8306		       a9 40		      lda	#<[cli_buffer]
+      2  8308		       85 86		      sta	[memcmp_b_ptr]
+      3  830a		       a9 01		      lda	#>[cli_buffer]
+      4  830c		       85 87		      sta	[memcmp_b_ptr] + 1
+    761  830e		       a9 04		      lda	#cli_command_help_prefix_length
+    762  8310		       85 88		      sta	memcmp_length
+    763  8312		       a9 00		      lda	#0
+    764  8314		       85 89		      sta	memcmp_length+1
+    765  8316		       20 01 80 	      jsr	memcmp
+    766  8319
+    767  8319		       c9 00		      cmp	#0
+    768  831b		       f0 03		      beq	.found
+    769  831d
+    770  831d		       a9 00		      lda	#0
+    771  831f		       60		      rts
+    772  8320
+    773  8320				   .found
+      0  8320					      puts	cli_help_0
+      0  8320					      load_address	puts_ptr, [cli_help_0]
+      1  8320		       a9 b2		      lda	#<[[cli_help_0]]
+      2  8322		       85 80		      sta	[puts_ptr]
+      3  8324		       a9 41		      lda	#>[[cli_help_0]]
+      4  8326		       85 81		      sta	[puts_ptr] + 1
+      2  8328		       20 9d 80 	      jsr	_puts
+    775  832b		       a9 01		      lda	#1
+    776  832d		       60		      rts
+    777  832e
+    778  832e				   cli_handle_command_read
+    779  832e					      subroutine
+      0  832e					      load_address	memcmp_a_ptr, cli_command_read_prefix
+      1  832e		       a9 a2		      lda	#<[cli_command_read_prefix]
+      2  8330		       85 84		      sta	[memcmp_a_ptr]
+      3  8332		       a9 41		      lda	#>[cli_command_read_prefix]
+      4  8334		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8336					      load_address	memcmp_b_ptr, cli_buffer
+      1  8336		       a9 40		      lda	#<[cli_buffer]
+      2  8338		       85 86		      sta	[memcmp_b_ptr]
+      3  833a		       a9 01		      lda	#>[cli_buffer]
+      4  833c		       85 87		      sta	[memcmp_b_ptr] + 1
+    782  833e		       a9 05		      lda	#cli_command_read_prefix_length
+    783  8340		       85 88		      sta	memcmp_length
+    784  8342		       a9 00		      lda	#0
+    785  8344		       85 89		      sta	memcmp_length+1
+    786  8346		       20 01 80 	      jsr	memcmp
+    787  8349
+    788  8349		       c9 00		      cmp	#0
+    789  834b		       f0 03		      beq	.found
+    790  834d
+    791  834d		       a9 00		      lda	#0
+    792  834f		       60		      rts
+    793  8350
+    794  8350				   .found
+      0  8350					      load_address	scanf_word_ptr, cli_buffer
+      1  8350		       a9 40		      lda	#<[cli_buffer]
+      2  8352		       85 8e		      sta	[scanf_word_ptr]
+      3  8354		       a9 01		      lda	#>[cli_buffer]
+      4  8356		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  8358					      inc16	scanf_word_ptr
+      1  8358		       e6 8e		      inc	scanf_word_ptr
+      2  835a		       d0 02		      bne	.1
+      3  835c		       e6 8f		      inc	scanf_word_ptr+1
+      4  835e				   .1
+      0  835e					      inc16	scanf_word_ptr
+      1  835e		       e6 8e		      inc	scanf_word_ptr
+      2  8360		       d0 02		      bne	.1
+      3  8362		       e6 8f		      inc	scanf_word_ptr+1
+      4  8364				   .1
+      0  8364					      inc16	scanf_word_ptr
+      1  8364		       e6 8e		      inc	scanf_word_ptr
+      2  8366		       d0 02		      bne	.1
+      3  8368		       e6 8f		      inc	scanf_word_ptr+1
+      4  836a				   .1
+      0  836a					      inc16	scanf_word_ptr
+      1  836a		       e6 8e		      inc	scanf_word_ptr
+      2  836c		       d0 02		      bne	.1
+      3  836e		       e6 8f		      inc	scanf_word_ptr+1
+      4  8370				   .1
+      0  8370					      inc16	scanf_word_ptr
+      1  8370		       e6 8e		      inc	scanf_word_ptr
+      2  8372		       d0 02		      bne	.1
+      3  8374		       e6 8f		      inc	scanf_word_ptr+1
+      4  8376				   .1
+    801  8376		       20 d6 80 	      jsr	scanf_word
+    802  8379
+    803  8379		       a9 24		      lda	#'$
+    804  837b		       20 99 80 	      jsr	_putc
+    805  837e		       a5 91		      lda	scanf_word_result+1
+    806  8380		       20 42 81 	      jsr	print_hex_byte
+    807  8383		       a5 90		      lda	scanf_word_result
+    808  8385		       20 42 81 	      jsr	print_hex_byte
+    809  8388		       a9 20		      lda	#$20
+    810  838a		       20 99 80 	      jsr	_putc
+    811  838d		       a9 3d		      lda	#'=
+    812  838f		       20 99 80 	      jsr	_putc
+    813  8392		       a9 20		      lda	#$20
+    814  8394		       20 99 80 	      jsr	_putc
+    815  8397		       a9 24		      lda	#'$
+    816  8399		       20 99 80 	      jsr	_putc
+    817  839c		       a2 00		      ldx	#0
+    818  839e		       a1 90		      lda	(scanf_word_result,X)
+    819  83a0		       20 42 81 	      jsr	print_hex_byte
+    820  83a3		       20 59 81 	      jsr	print_newline
+    821  83a6
+    822  83a6		       a9 01		      lda	#1
+    823  83a8		       60		      rts
+    824  83a9
+    825  83a9				   cli_handle_command_write
+    826  83a9					      subroutine
+      0  83a9					      load_address	memcmp_a_ptr, cli_command_write_prefix
+      1  83a9		       a9 a7		      lda	#<[cli_command_write_prefix]
+      2  83ab		       85 84		      sta	[memcmp_a_ptr]
+      3  83ad		       a9 41		      lda	#>[cli_command_write_prefix]
+      4  83af		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  83b1					      load_address	memcmp_b_ptr, cli_buffer
+      1  83b1		       a9 40		      lda	#<[cli_buffer]
+      2  83b3		       85 86		      sta	[memcmp_b_ptr]
+      3  83b5		       a9 01		      lda	#>[cli_buffer]
+      4  83b7		       85 87		      sta	[memcmp_b_ptr] + 1
+    829  83b9		       a9 06		      lda	#cli_command_write_prefix_length
+    830  83bb		       85 88		      sta	memcmp_length
+    831  83bd		       a9 00		      lda	#0
+    832  83bf		       85 89		      sta	memcmp_length+1
+    833  83c1		       20 01 80 	      jsr	memcmp
+    834  83c4
+    835  83c4		       c9 00		      cmp	#0
+    836  83c6		       f0 03		      beq	.found
+    837  83c8
+    838  83c8		       a9 00		      lda	#0
+    839  83ca		       60		      rts
+    840  83cb
+    841  83cb				   .found
+      0  83cb					      load_address	scanf_word_ptr, cli_buffer
+      1  83cb		       a9 40		      lda	#<[cli_buffer]
+      2  83cd		       85 8e		      sta	[scanf_word_ptr]
+      3  83cf		       a9 01		      lda	#>[cli_buffer]
+      4  83d1		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  83d3					      inc16	scanf_word_ptr
+      1  83d3		       e6 8e		      inc	scanf_word_ptr
+      2  83d5		       d0 02		      bne	.1
+      3  83d7		       e6 8f		      inc	scanf_word_ptr+1
+      4  83d9				   .1
+      0  83d9					      inc16	scanf_word_ptr
+      1  83d9		       e6 8e		      inc	scanf_word_ptr
+      2  83db		       d0 02		      bne	.1
+      3  83dd		       e6 8f		      inc	scanf_word_ptr+1
+      4  83df				   .1
+      0  83df					      inc16	scanf_word_ptr
+      1  83df		       e6 8e		      inc	scanf_word_ptr
+      2  83e1		       d0 02		      bne	.1
+      3  83e3		       e6 8f		      inc	scanf_word_ptr+1
+      4  83e5				   .1
+      0  83e5					      inc16	scanf_word_ptr
+      1  83e5		       e6 8e		      inc	scanf_word_ptr
+      2  83e7		       d0 02		      bne	.1
+      3  83e9		       e6 8f		      inc	scanf_word_ptr+1
+      4  83eb				   .1
+      0  83eb					      inc16	scanf_word_ptr
+      1  83eb		       e6 8e		      inc	scanf_word_ptr
+      2  83ed		       d0 02		      bne	.1
+      3  83ef		       e6 8f		      inc	scanf_word_ptr+1
+      4  83f1				   .1
+      0  83f1					      inc16	scanf_word_ptr
+      1  83f1		       e6 8e		      inc	scanf_word_ptr
+      2  83f3		       d0 02		      bne	.1
+      3  83f5		       e6 8f		      inc	scanf_word_ptr+1
+      4  83f7				   .1
+    849  83f7		       a5 8e		      lda	scanf_word_ptr
+    850  83f9		       85 92		      sta	scanf_byte_ptr
+    851  83fb		       a5 8f		      lda	scanf_word_ptr+1
+    852  83fd		       85 93		      sta	scanf_byte_ptr+1
+      0  83ff					      inc16	scanf_byte_ptr
+      1  83ff		       e6 92		      inc	scanf_byte_ptr
+      2  8401		       d0 02		      bne	.1
+      3  8403		       e6 93		      inc	scanf_byte_ptr+1
+      4  8405				   .1
+      0  8405					      inc16	scanf_byte_ptr
+      1  8405		       e6 92		      inc	scanf_byte_ptr
+      2  8407		       d0 02		      bne	.1
+      3  8409		       e6 93		      inc	scanf_byte_ptr+1
+      4  840b				   .1
+      0  840b					      inc16	scanf_byte_ptr
+      1  840b		       e6 92		      inc	scanf_byte_ptr
+      2  840d		       d0 02		      bne	.1
+      3  840f		       e6 93		      inc	scanf_byte_ptr+1
+      4  8411				   .1
+      0  8411					      inc16	scanf_byte_ptr
+      1  8411		       e6 92		      inc	scanf_byte_ptr
+      2  8413		       d0 02		      bne	.1
+      3  8415		       e6 93		      inc	scanf_byte_ptr+1
+      4  8417				   .1
+      0  8417					      inc16	scanf_byte_ptr
+      1  8417		       e6 92		      inc	scanf_byte_ptr
+      2  8419		       d0 02		      bne	.1
+      3  841b		       e6 93		      inc	scanf_byte_ptr+1
+      4  841d				   .1
+    858  841d
+    859  841d		       20 d6 80 	      jsr	scanf_word
+    860  8420
+    861  8420		       20 1c 81 	      jsr	scanf_byte
+    862  8423
+    863  8423		       a9 24		      lda	#'$
+    864  8425		       20 99 80 	      jsr	_putc
+    865  8428		       a5 91		      lda	scanf_word_result+1
+    866  842a		       20 42 81 	      jsr	print_hex_byte
+    867  842d		       a5 90		      lda	scanf_word_result
+    868  842f		       20 42 81 	      jsr	print_hex_byte
+    869  8432		       a9 20		      lda	#$20
+    870  8434		       20 99 80 	      jsr	_putc
+    871  8437		       a9 3a		      lda	#':
+    872  8439		       20 99 80 	      jsr	_putc
+    873  843c		       a9 3d		      lda	#'=
+    874  843e		       20 99 80 	      jsr	_putc
+    875  8441		       a9 20		      lda	#$20
+    876  8443		       20 99 80 	      jsr	_putc
+    877  8446		       a9 24		      lda	#'$
+    878  8448		       20 99 80 	      jsr	_putc
+    879  844b		       a5 94		      lda	scanf_byte_result
+    880  844d		       20 42 81 	      jsr	print_hex_byte
+    881  8450		       20 59 81 	      jsr	print_newline
+    882  8453
+    883  8453		       a2 00		      ldx	#0
+    884  8455		       a5 94		      lda	scanf_byte_result
+    885  8457		       81 90		      sta	(scanf_word_result,X)
+    886  8459
+    887  8459		       a9 01		      lda	#1
+    888  845b		       60		      rts
+    889  845c
+    890  845c				   cli_handle_command_call
+    891  845c					      subroutine
+      0  845c					      load_address	memcmp_a_ptr, cli_command_call_prefix
+      1  845c		       a9 ad		      lda	#<[cli_command_call_prefix]
+      2  845e		       85 84		      sta	[memcmp_a_ptr]
+      3  8460		       a9 41		      lda	#>[cli_command_call_prefix]
+      4  8462		       85 85		      sta	[memcmp_a_ptr] + 1
+      0  8464					      load_address	memcmp_b_ptr, cli_buffer
+      1  8464		       a9 40		      lda	#<[cli_buffer]
+      2  8466		       85 86		      sta	[memcmp_b_ptr]
+      3  8468		       a9 01		      lda	#>[cli_buffer]
+      4  846a		       85 87		      sta	[memcmp_b_ptr] + 1
+    894  846c		       a9 05		      lda	#cli_command_call_prefix_length
+    895  846e		       85 88		      sta	memcmp_length
+    896  8470		       a9 00		      lda	#0
+    897  8472		       85 89		      sta	memcmp_length+1
+    898  8474		       20 01 80 	      jsr	memcmp
+    899  8477
+    900  8477		       c9 00		      cmp	#0
+    901  8479		       f0 03		      beq	.found
+    902  847b
+    903  847b		       a9 00		      lda	#0
+    904  847d		       60		      rts
+    905  847e
+    906  847e				   .found
+      0  847e					      load_address	scanf_word_ptr, cli_buffer
+      1  847e		       a9 40		      lda	#<[cli_buffer]
+      2  8480		       85 8e		      sta	[scanf_word_ptr]
+      3  8482		       a9 01		      lda	#>[cli_buffer]
+      4  8484		       85 8f		      sta	[scanf_word_ptr] + 1
+      0  8486					      inc16	scanf_word_ptr
+      1  8486		       e6 8e		      inc	scanf_word_ptr
+      2  8488		       d0 02		      bne	.1
+      3  848a		       e6 8f		      inc	scanf_word_ptr+1
+      4  848c				   .1
+      0  848c					      inc16	scanf_word_ptr
+      1  848c		       e6 8e		      inc	scanf_word_ptr
+      2  848e		       d0 02		      bne	.1
+      3  8490		       e6 8f		      inc	scanf_word_ptr+1
+      4  8492				   .1
+      0  8492					      inc16	scanf_word_ptr
+      1  8492		       e6 8e		      inc	scanf_word_ptr
+      2  8494		       d0 02		      bne	.1
+      3  8496		       e6 8f		      inc	scanf_word_ptr+1
+      4  8498				   .1
+      0  8498					      inc16	scanf_word_ptr
+      1  8498		       e6 8e		      inc	scanf_word_ptr
+      2  849a		       d0 02		      bne	.1
+      3  849c		       e6 8f		      inc	scanf_word_ptr+1
+      4  849e				   .1
+      0  849e					      inc16	scanf_word_ptr
+      1  849e		       e6 8e		      inc	scanf_word_ptr
+      2  84a0		       d0 02		      bne	.1
+      3  84a2		       e6 8f		      inc	scanf_word_ptr+1
+      4  84a4				   .1
+    913  84a4		       20 d6 80 	      jsr	scanf_word
+    914  84a7
+    915  84a7		       a9 6a		      lda	#'j
+    916  84a9		       20 99 80 	      jsr	_putc
+    917  84ac		       a9 73		      lda	#'s
+    918  84ae		       20 99 80 	      jsr	_putc
+    919  84b1		       a9 72		      lda	#'r
+    920  84b3		       20 99 80 	      jsr	_putc
+    921  84b6		       a9 20		      lda	#$20
+    922  84b8		       20 99 80 	      jsr	_putc
+    923  84bb		       a9 24		      lda	#'$
+    924  84bd		       20 99 80 	      jsr	_putc
+    925  84c0		       a5 91		      lda	scanf_word_result+1
+    926  84c2		       20 42 81 	      jsr	print_hex_byte
+    927  84c5		       a5 90		      lda	scanf_word_result
+    928  84c7		       20 42 81 	      jsr	print_hex_byte
+    929  84ca		       20 59 81 	      jsr	print_newline
+    930  84cd
+    931  84cd		       a2 00		      ldx	#0
+    932  84cf		       a9 20		      lda	#$20	; JSR
+    933  84d1		       9d 80 01 	      sta	cli_call_tramp,X
+    934  84d4		       e8		      inx
+    935  84d5		       a5 90		      lda	scanf_word_result
+    936  84d7		       9d 80 01 	      sta	cli_call_tramp,X
+    937  84da		       e8		      inx
+    938  84db		       a5 91		      lda	scanf_word_result+1
+    939  84dd		       9d 80 01 	      sta	cli_call_tramp,X
+    940  84e0		       e8		      inx
+    941  84e1		       a9 60		      lda	#$60	; RTS
+    942  84e3		       9d 80 01 	      sta	cli_call_tramp,X
+    943  84e6		       e8		      inx
+    944  84e7
+    945  84e7		       20 80 01 	      jsr	cli_call_tramp
+    946  84ea
+    947  84ea		       a9 01		      lda	#1
+    948  84ec		       60		      rts
+    949  84ed
+    950  84ed
+    951  84ed				   cli_handle_command
+    952  84ed					      subroutine
+    953  84ed
+    954  84ed		       20 fe 82 	      jsr	cli_handle_command_help
+    955  84f0		       c9 00		      cmp	#0
+    956  84f2		       d0 22		      bne	.done
+    957  84f4
+    958  84f4		       20 2e 83 	      jsr	cli_handle_command_read
+    959  84f7		       c9 00		      cmp	#0
+    960  84f9		       d0 1b		      bne	.done
+    961  84fb
+    962  84fb		       20 a9 83 	      jsr	cli_handle_command_write
+    963  84fe		       c9 00		      cmp	#0
+    964  8500		       d0 14		      bne	.done
+    965  8502
+    966  8502		       20 5c 84 	      jsr	cli_handle_command_call
+    967  8505		       c9 00		      cmp	#0
+    968  8507		       d0 0d		      bne	.done
+    969  8509
+      0  8509					      puts	cli_invalid_command
+      0  8509					      load_address	puts_ptr, [cli_invalid_command]
+      1  8509		       a9 8d		      lda	#<[[cli_invalid_command]]
+      2  850b		       85 80		      sta	[puts_ptr]
+      3  850d		       a9 41		      lda	#>[[cli_invalid_command]]
+      4  850f		       85 81		      sta	[puts_ptr] + 1
+      2  8511		       20 9d 80 	      jsr	_puts
+    971  8514		       a9 01		      lda	#1
+    972  8516				   .done
+    973  8516		       60		      rts
+    974  8517
+    975  8517							;; ----------------------------------------------------------
+    976  8517
+    977  8517				   cli	      subroutine
+    978  8517
+    979  8517				   .loop
+    980  8517		       20 59 81 	      jsr	print_newline
+      0  851a					      puts	cli_prompt
+      0  851a					      load_address	puts_ptr, [cli_prompt]
+      1  851a		       a9 85		      lda	#<[[cli_prompt]]
+      2  851c		       85 80		      sta	[puts_ptr]
+      3  851e		       a9 41		      lda	#>[[cli_prompt]]
+      4  8520		       85 81		      sta	[puts_ptr] + 1
+      2  8522		       20 9d 80 	      jsr	_puts
+    982  8525		       20 df 82 	      jsr	cli_read_command
+    983  8528							; puts cli_buffer
+    984  8528		       20 ed 84 	      jsr	cli_handle_command
+    985  852b		       c9 ff		      cmp	#$ff
+    986  852d		       d0 e8		      bne	.loop
+    987  852f
+    988  852f		       60		      rts
+    989  8530
+    990  8530							;; ==========================================================
+    991  8530
+    992  8530				   reset      subroutine
+    993  8530
+    994  8530		       20 cb 81 	      jsr	init
+    995  8533		       20 70 82 	      jsr	print_motd
+    996  8536		       20 a2 82 	      jsr	print_mail
+    997  8539		       20 17 85 	      jsr	cli
+    998  853c
+    999  853c				   .loop
+   1000  853c		       4c 3c 85 	      jmp	.loop
+   1001  853f		       60		      rts
+   1002  8540
+   1003  8540
+   1004  8540		       40	   nmi	      rti
+   1005  8541
+   1006  8541		       40	   irq	      rti
+   1007  8542
+   1008  8542							;; ------------------------------------------------------------------
+   1009  8542
+   1010  fffa					      org	$FFFA
+   1011  fffa		       30 85		      .word.w	reset
+   1012  fffc		       30 85		      .word.w	reset
+   1013  fffe		       30 85		      .word.w	reset
